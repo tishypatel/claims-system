@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ClaimsHub — QBE AI Challenge Presentation</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --amber: #e8961a;
+    --amber-dark: #c2720a;
+    --amber-light: #fef3c7;
+    --amber-glow: rgba(232,150,26,0.18);
+    --bg-dark: #16140e;
+    --surface: #1f1d14;
+    --surface-2: #2a2720;
+    --surface-3: #34302580;
+    --border: rgba(232,150,26,0.18);
+    --text-1: #f5f0e8;
+    --text-2: #c4b99a;
+    --text-3: #857a65;
+    --grid-minor: rgba(232,150,26,0.045);
+    --grid-major: rgba(232,150,26,0.09);
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg-dark);
+    color: var(--text-1);
+    overflow: hidden;
+  }
+
+  /* ── Blueprint grid background ── */
+  .bg-grid {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image:
+      linear-gradient(var(--grid-major) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
+      linear-gradient(var(--grid-minor) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
+    background-size: 80px 80px, 80px 80px, 20px 20px, 20px 20px;
+  }
+
+  /* ── Scroll container ── */
+  .deck {
+    display: flex;
+    width: 100%; height: 100vh;
+    overflow-x: scroll;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    scroll-behavior: smooth;
+    position: relative; z-index: 1;
+  }
+  .deck::-webkit-scrollbar { display: none; }
+
+  /* ── Slides ── */
+  .slide {
+    min-width: 100vw;
+    height: 100vh;
+    scroll-snap-align: start;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 60px;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  /* ── Slide number badge ── */
+  .slide-num {
+    position: absolute;
+    top: 28px; left: 44px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
+    color: var(--text-3);
+    text-transform: uppercase;
+  }
+
+  /* ── Part label ── */
+  .part-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--amber);
+    background: var(--amber-glow);
+    border: 1px solid var(--border);
+    padding: 5px 14px; border-radius: 100px;
+    margin-bottom: 24px;
+  }
+  .part-label .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); }
+
+  h1.hero-title {
+    font-size: clamp(42px, 5.5vw, 72px);
+    font-weight: 800; line-height: 1.05;
+    letter-spacing: -0.03em;
+    color: var(--text-1);
+    margin-bottom: 20px;
+  }
+  h1.hero-title span { color: var(--amber); }
+
+  h2.slide-title {
+    font-size: clamp(28px, 3.5vw, 46px);
+    font-weight: 800; line-height: 1.1;
+    letter-spacing: -0.025em;
+    margin-bottom: 12px;
+  }
+  h2.slide-title span { color: var(--amber); }
+
+  h3.section-heading {
+    font-size: 18px; font-weight: 700;
+    color: var(--text-1); margin-bottom: 8px;
+  }
+
+  p.lead {
+    font-size: clamp(15px, 1.5vw, 18px);
+    color: var(--text-2); line-height: 1.65;
+    max-width: 600px;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px 28px;
+  }
+  .card-sm {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+
+  /* ── Grid layouts ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+  .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; }
+
+  /* ── Feature pill ── */
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 5px 12px; border-radius: 100px;
+    color: var(--text-2);
+    margin: 4px 3px;
+  }
+  .pill svg { width: 12px; height: 12px; color: var(--amber); flex-shrink: 0; }
+
+  /* ── Progress bar ── */
+  .progress-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    height: 3px; background: rgba(255,255,255,0.06);
+    z-index: 100;
+  }
+  .progress-fill {
+    height: 100%; background: linear-gradient(90deg, var(--amber-dark), var(--amber));
+    transition: width 0.35s cubic-bezier(0.4,0,0.2,1);
+    width: 7.69%;
+  }
+
+  /* ── Nav dots ── */
+  .nav-dots {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 8px; z-index: 100;
+  }
+  .dot-btn {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--text-3);
+    border: none; cursor: pointer;
+    transition: background 0.25s, transform 0.25s;
+    padding: 0;
+  }
+  .dot-btn.active { background: var(--amber); transform: scale(1.4); }
+
+  /* ── Arrow nav ── */
+  .arrow-nav {
+    position: fixed; bottom: 16px; right: 32px;
+    display: flex; gap: 10px; z-index: 100;
+  }
+  .arr-btn {
+    width: 38px; height: 38px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: background 0.2s, border-color 0.2s;
+    color: var(--text-2);
+  }
+  .arr-btn:hover { background: var(--amber-glow); border-color: var(--amber); color: var(--amber); }
+  .arr-btn svg { width: 16px; height: 16px; }
+
+  /* ── Slide counter ── */
+  .slide-counter {
+    position: fixed; bottom: 26px; left: 36px;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
+    color: var(--text-3); z-index: 100;
+  }
+  .slide-counter span { color: var(--amber); }
+
+  /* ── Decorative elements ── */
+  .deco-square {
+    position: absolute;
+    border: 1px dashed rgba(232,150,26,0.22);
+    border-radius: 4px;
+    pointer-events: none;
+  }
+
+  /* ── Stat block ── */
+  .stat-block { text-align: center; padding: 20px; }
+  .stat-num {
+    font-size: clamp(32px, 3.5vw, 48px);
+    font-weight: 800; color: var(--amber);
+    line-height: 1; margin-bottom: 6px;
+    letter-spacing: -0.03em;
+  }
+  .stat-label { font-size: 13px; color: var(--text-2); font-weight: 500; }
+
+  /* ── Phase bar ── */
+  .phase-row { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+  .phase-label { font-size: 13px; font-weight: 700; color: var(--text-2); width: 110px; flex-shrink: 0; }
+  .phase-track { flex: 1; height: 8px; background: var(--surface-2); border-radius: 100px; overflow: hidden; }
+  .phase-fill {
+    height: 100%; border-radius: 100px;
+    background: linear-gradient(90deg, var(--amber-dark), var(--amber));
+    transform-origin: left;
+    animation: growBar 1.2s cubic-bezier(0.4,0,0.2,1) forwards;
+    transform: scaleX(0);
+  }
+  @keyframes growBar { to { transform: scaleX(1); } }
+  .phase-pct { font-size: 13px; font-weight: 700; color: var(--amber); width: 40px; text-align: right; }
+
+  /* ── Tool badge ── */
+  .tool-badge {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .tool-badge .t-icon {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: var(--amber-glow);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+  .tool-badge .t-name { font-size: 14px; font-weight: 700; color: var(--text-1); }
+  .tool-badge .t-desc { font-size: 12px; color: var(--text-3); line-height: 1.5; }
+
+  /* ── Challenge card ── */
+  .challenge-item {
+    display: flex; gap: 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 22px;
+    margin-bottom: 14px;
+  }
+  .ch-icon {
+    width: 36px; height: 36px; flex-shrink: 0;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .ch-icon.warn { background: rgba(234,179,8,0.15); }
+  .ch-icon.info { background: rgba(59,130,246,0.15); }
+  .ch-icon.ok   { background: rgba(34,197,94,0.15); }
+  .ch-title { font-size: 14px; font-weight: 700; color: var(--text-1); margin-bottom: 4px; }
+  .ch-body  { font-size: 12.5px; color: var(--text-2); line-height: 1.55; }
+
+  /* ── Demo flow ── */
+  .flow-step {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 16px;
+    text-align: center;
+    position: relative;
+  }
+  .flow-step .f-num {
+    font-size: 11px; font-weight: 800; letter-spacing: 0.1em;
+    color: var(--amber); margin-bottom: 8px;
+  }
+  .flow-step .f-name { font-size: 13px; font-weight: 700; color: var(--text-1); margin-bottom: 4px; }
+  .flow-step .f-desc { font-size: 11.5px; color: var(--text-3); line-height: 1.4; }
+  .flow-arrow {
+    display: flex; align-items: center; justify-content: center;
+    color: var(--amber); font-size: 20px; flex-shrink: 0;
+  }
+
+  /* ── Slide transitions ── */
+  .slide { opacity: 0; transform: translateX(40px); transition: opacity 0.5s ease, transform 0.5s ease; }
+  .slide.visible { opacity: 1; transform: translateX(0); }
+
+  /* ── Amber line accent ── */
+  .amber-line {
+    width: 48px; height: 3px;
+    background: linear-gradient(90deg, var(--amber-dark), var(--amber));
+    border-radius: 2px; margin-bottom: 20px;
+  }
+
+  /* ── Two-col layout ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; max-width: 1100px; width: 100%; }
+  .two-col-left { display: flex; flex-direction: column; }
+
+  /* ── Slide content width constraint ── */
+  .slide-inner { max-width: 1100px; width: 100%; }
+  .slide-inner-sm { max-width: 900px; width: 100%; }
+
+  /* ── Tag chip ── */
+  .tag { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 6px; display: inline-block; }
+  .tag-amber { background: rgba(232,150,26,0.18); color: var(--amber); }
+  .tag-blue  { background: rgba(59,130,246,0.15); color: #93c5fd; }
+  .tag-green { background: rgba(34,197,94,0.15);  color: #86efac; }
+  .tag-red   { background: rgba(239,68,68,0.15);  color: #fca5a5; }
+
+  /* ── Cover slide specific ── */
+  #slide-0 { flex-direction: column; text-align: center; }
+  .cover-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--amber);
+    background: var(--amber-glow); border: 1px solid var(--border);
+    padding: 7px 18px; border-radius: 100px; margin-bottom: 32px;
+  }
+  .cover-sub {
+    font-size: clamp(14px, 1.5vw, 18px);
+    color: var(--text-2); max-width: 560px; line-height: 1.6; margin: 0 auto 40px;
+  }
+  .cover-meta {
+    display: flex; gap: 32px; justify-content: center; margin-top: 48px;
+  }
+  .meta-item { text-align: center; }
+  .meta-item .m-val { font-size: 22px; font-weight: 800; color: var(--amber); }
+  .meta-item .m-key { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 2px; }
+
+  /* ── Separator line ── */
+  .sep { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* logo text */
+  .logo-text { font-size: 15px; font-weight: 800; letter-spacing: -0.02em; }
+  .logo-text span { color: var(--amber); }
+
+  @keyframes pulse-amber {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .live-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: #22c55e;
+    animation: pulse-amber 2s ease-in-out infinite;
+    display: inline-block; margin-right: 6px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Blueprint grid background -->
+<div class="bg-grid"></div>
+
+<!-- Progress bar -->
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+<!-- Slide counter -->
+<div class="slide-counter"><span id="currentSlide">1</span> / <span id="totalSlides">13</span></div>
+
+<!-- Dot navigation -->
+<div class="nav-dots" id="navDots"></div>
+
+<!-- Arrow navigation -->
+<div class="arrow-nav">
+  <button class="arr-btn" id="btnPrev" onclick="navigate(-1)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg>
+  </button>
+  <button class="arr-btn" id="btnNext" onclick="navigate(1)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,6 15,12 9,18"/></svg>
+  </button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     DECK
+     ═══════════════════════════════════════════════════════════ -->
+<div class="deck" id="deck">
+
+  <!-- ── SLIDE 0 — Cover ── -->
+  <div class="slide" id="slide-0">
+    <div class="deco-square" style="width:180px;height:180px;top:60px;right:80px;opacity:0.5;"></div>
+    <div class="deco-square" style="width:90px;height:90px;bottom:100px;left:60px;opacity:0.35;"></div>
+    <div class="deco-square" style="width:60px;height:60px;top:120px;left:200px;opacity:0.25;"></div>
+
+    <div class="cover-badge">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+      QBE AI Challenge 2026
+    </div>
+    <h1 class="hero-title">Claims<span>Hub</span></h1>
+    <p class="cover-sub">An AI-powered insurance claims management platform — built in 3 phases, from ideation through production-ready deployment.</p>
+
+    <div class="cover-meta">
+      <div class="meta-item"><div class="m-val">3</div><div class="m-key">Phases</div></div>
+      <div class="meta-item"><div class="m-val">~80%</div><div class="m-key">AI-Assisted</div></div>
+      <div class="meta-item"><div class="m-val">Full-Stack</div><div class="m-key">React + Node</div></div>
+      <div class="meta-item"><div class="m-val">Live</div><div class="m-key">Demo Ready</div></div>
+    </div>
+
+    <p style="margin-top:48px;font-size:12px;color:var(--text-3);">Use ← → arrow keys or click the arrows to navigate</p>
+  </div>
+
+  <!-- ── SLIDE 1 — App Objective ── -->
+  <div class="slide">
+    <div class="slide-num">Part 01</div>
+    <div class="two-col">
+      <div class="two-col-left">
+        <div class="part-label"><span class="dot"></span>Application Objective</div>
+        <h2 class="slide-title">What is<br/><span>ClaimsHub?</span></h2>
+        <div class="amber-line"></div>
+        <p class="lead">A modern, role-based insurance claims platform that replaces fragmented spreadsheet workflows with AI-assisted processing — built specifically for QBE's claims adjudication pipeline.</p>
+        <div style="display:flex;flex-wrap:wrap;margin-top:22px;">
+          <span class="pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Role-Based Access
+          </span>
+          <span class="pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+            Real-Time Status
+          </span>
+          <span class="pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+            AI Adjudication
+          </span>
+          <span class="pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            Live Analytics
+          </span>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div class="card-sm">
+          <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.1em;">Problem Statement</div>
+          <p style="font-size:13.5px;color:var(--text-2);line-height:1.6;">Insurance claim teams rely on manual reviews, email threads, and disconnected tools — causing delays, inconsistent decisions, and poor claimant experience.</p>
+        </div>
+        <div class="card-sm">
+          <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.1em;">Our Solution</div>
+          <p style="font-size:13.5px;color:var(--text-2);line-height:1.6;">A single, unified platform where claimants submit, adjusters review, AI flags anomalies, and managers track — with full audit trail and status transparency.</p>
+        </div>
+        <div class="card-sm">
+          <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.1em;">Target Users</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="tag tag-amber">Claimants</span>
+            <span class="tag tag-blue">Claims Adjusters</span>
+            <span class="tag tag-green">Managers / Admins</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 2 — Demo Flow ── -->
+  <div class="slide">
+    <div class="slide-num">Part 01</div>
+    <div class="slide-inner">
+      <div class="part-label"><span class="dot"></span>Live Demo Flow</div>
+      <h2 class="slide-title">End-to-End <span>User Journey</span></h2>
+      <div class="amber-line"></div>
+
+      <div style="display:flex;align-items:center;gap:10px;margin-top:32px;flex-wrap:wrap;">
+
+        <div class="flow-step" style="flex:1;min-width:120px;">
+          <div class="f-num">STEP 01</div>
+          <div style="font-size:22px;margin-bottom:8px;">🏠</div>
+          <div class="f-name">Landing Page</div>
+          <div class="f-desc">Marketing overview with animated blueprint background</div>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-step" style="flex:1;min-width:120px;">
+          <div class="f-num">STEP 02</div>
+          <div style="font-size:22px;margin-bottom:8px;">🔐</div>
+          <div class="f-name">Login</div>
+          <div class="f-desc">Role-based auth — Claimant, Adjuster or Admin</div>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-step" style="flex:1;min-width:120px;">
+          <div class="f-num">STEP 03</div>
+          <div style="font-size:22px;margin-bottom:8px;">📊</div>
+          <div class="f-name">Dashboard</div>
+          <div class="f-desc">Stat cards, filters, claim table with status badges</div>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-step" style="flex:1;min-width:120px;">
+          <div class="f-num">STEP 04</div>
+          <div style="font-size:22px;margin-bottom:8px;">📝</div>
+          <div class="f-name">File a Claim</div>
+          <div class="f-desc">Multi-section form with validation and document upload</div>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-step" style="flex:1;min-width:120px;">
+          <div class="f-num">STEP 05</div>
+          <div style="font-size:22px;margin-bottom:8px;">🤖</div>
+          <div class="f-name">AI Analysis</div>
+          <div class="f-desc">Claude AI reviews claim, flags risks, recommends decision</div>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-step" style="flex:1;min-width:120px;">
+          <div class="f-num">STEP 06</div>
+          <div style="font-size:22px;margin-bottom:8px;">✅</div>
+          <div class="f-name">Decision</div>
+          <div class="f-desc">Adjuster approves / rejects with AI-suggested reasoning</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:28px;display:flex;gap:32px;align-items:center;flex-wrap:wrap;">
+        <div style="flex:1;">
+          <div style="font-size:12px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Demo Accounts</div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;">
+            <span style="font-size:13px;color:var(--text-2);"><strong style="color:var(--text-1);">Claimant:</strong> claimant@qbe.com</span>
+            <span style="font-size:13px;color:var(--text-2);"><strong style="color:var(--text-1);">Adjuster:</strong> adjuster@qbe.com</span>
+            <span style="font-size:13px;color:var(--text-2);"><strong style="color:var(--text-1);">Admin:</strong> admin@qbe.com</span>
+          </div>
+        </div>
+        <div style="font-size:13px;color:var(--text-3);">All passwords: <strong style="color:var(--amber);font-family:monospace;">password123</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 3 — Key Features ── -->
+  <div class="slide">
+    <div class="slide-num">Part 01</div>
+    <div class="slide-inner">
+      <div class="part-label"><span class="dot"></span>Application Features</div>
+      <h2 class="slide-title">What ClaimsHub <span>Delivers</span></h2>
+      <div class="amber-line"></div>
+
+      <div class="grid-3" style="margin-top:28px;">
+        <div class="card-sm">
+          <div style="font-size:24px;margin-bottom:10px;">🎨</div>
+          <div class="t-name" style="font-size:14px;font-weight:700;color:var(--text-1);margin-bottom:4px;">Dual Theme UI</div>
+          <div class="t-desc" style="font-size:12px;color:var(--text-3);line-height:1.5;">Light & dark modes with warm amber accent. Persisted to localStorage. Accessible to all age groups.</div>
+        </div>
+        <div class="card-sm">
+          <div style="font-size:24px;margin-bottom:10px;">🤖</div>
+          <div class="t-name" style="font-size:14px;font-weight:700;color:var(--text-1);margin-bottom:4px;">AI Risk Analysis</div>
+          <div class="t-desc" style="font-size:12px;color:var(--text-3);line-height:1.5;">Claude AI analyses each claim, identifies fraud indicators, and generates a structured recommendation.</div>
+        </div>
+        <div class="card-sm">
+          <div style="font-size:24px;margin-bottom:10px;">📋</div>
+          <div class="t-name" style="font-size:14px;font-weight:700;color:var(--text-1);margin-bottom:4px;">Full Audit Trail</div>
+          <div class="t-desc" style="font-size:12px;color:var(--text-3);line-height:1.5;">Every status change, decision, and AI interaction is timestamped and attributed — compliance ready.</div>
+        </div>
+        <div class="card-sm">
+          <div style="font-size:24px;margin-bottom:10px;">🔒</div>
+          <div class="t-name" style="font-size:14px;font-weight:700;color:var(--text-1);margin-bottom:4px;">Role-Based Access</div>
+          <div class="t-desc" style="font-size:12px;color:var(--text-3);line-height:1.5;">3-tier RBAC: claimants see only their claims; adjusters manage queue; admins see everything.</div>
+        </div>
+        <div class="card-sm">
+          <div style="font-size:24px;margin-bottom:10px;">📊</div>
+          <div class="t-name" style="font-size:14px;font-weight:700;color:var(--text-1);margin-bottom:4px;">Live Analytics</div>
+          <div class="t-desc" style="font-size:12px;color:var(--text-3);line-height:1.5;">Dashboard shows pending queue, approval rates, total exposure, and breakdown by claim type.</div>
+        </div>
+        <div class="card-sm">
+          <div style="font-size:24px;margin-bottom:10px;">🌐</div>
+          <div class="t-name" style="font-size:14px;font-weight:700;color:var(--text-1);margin-bottom:4px;">Marketing Landing</div>
+          <div class="t-desc" style="font-size:12px;color:var(--text-3);line-height:1.5;">Branded landing page with blueprint animation, scroll-reveal, animated counters and CTA sections.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 4 — Methodology Overview ── -->
+  <div class="slide">
+    <div class="slide-num">Part 02</div>
+    <div class="two-col">
+      <div class="two-col-left">
+        <div class="part-label"><span class="dot"></span>Methodology</div>
+        <h2 class="slide-title">How AI Shaped<br/><span>Every Phase</span></h2>
+        <div class="amber-line"></div>
+        <p class="lead">ClaimsHub was built with AI as a co-pilot across all three phases — not just for code generation, but for ideation, architecture decisions, design system thinking, and UX strategy.</p>
+        <div style="margin-top:24px;" class="card-sm">
+          <div style="font-size:12px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px;">Overall AI Involvement</div>
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="flex:1;height:10px;background:var(--surface-2);border-radius:100px;overflow:hidden;">
+              <div style="height:100%;width:80%;background:linear-gradient(90deg,var(--amber-dark),var(--amber));border-radius:100px;"></div>
+            </div>
+            <div style="font-size:20px;font-weight:800;color:var(--amber);">~80%</div>
+          </div>
+          <p style="font-size:12px;color:var(--text-3);margin-top:8px;">of development effort was AI-assisted or AI-generated</p>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div style="font-size:13px;font-weight:700;color:var(--text-1);">Phase 1 — Ideation</div>
+            <span class="tag tag-amber">~75% AI</span>
+          </div>
+          <p style="font-size:12.5px;color:var(--text-2);line-height:1.55;">Requirements scoping, user persona definition, workflow design, feature prioritisation — all AI-guided through prompt-driven exploration.</p>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div style="font-size:13px;font-weight:700;color:var(--text-1);">Phase 2 — Design</div>
+            <span class="tag tag-blue">~85% AI</span>
+          </div>
+          <p style="font-size:12.5px;color:var(--text-2);line-height:1.55;">CSS architecture, theming system, component hierarchy, layout structure, and visual identity (amber palette, blueprint aesthetic) — AI-designed and iterated in real time.</p>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div style="font-size:13px;font-weight:700;color:var(--text-1);">Phase 3 — Build</div>
+            <span class="tag tag-green">~80% AI</span>
+          </div>
+          <p style="font-size:12.5px;color:var(--text-2);line-height:1.55;">React components, Express API, lowdb persistence, seed data, AI integration endpoint — written and debugged with Claude Code as primary developer.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 5 — Phase 1: Ideation ── -->
+  <div class="slide">
+    <div class="slide-num">Part 02 / Phase 1</div>
+    <div class="slide-inner">
+      <div class="part-label"><span class="dot"></span>Ideation — Phase 1</div>
+      <h2 class="slide-title">AI-Driven <span>Ideation</span></h2>
+      <div class="amber-line"></div>
+
+      <div class="grid-2" style="margin-top:24px;gap:24px;">
+        <div>
+          <div class="phase-row">
+            <div class="phase-label">User Research</div>
+            <div class="phase-track"><div class="phase-fill" style="width:90%;animation-delay:0.1s;"></div></div>
+            <div class="phase-pct">90%</div>
+          </div>
+          <div class="phase-row">
+            <div class="phase-label">Feature Scoping</div>
+            <div class="phase-track"><div class="phase-fill" style="width:80%;animation-delay:0.2s;"></div></div>
+            <div class="phase-pct">80%</div>
+          </div>
+          <div class="phase-row">
+            <div class="phase-label">Workflow Design</div>
+            <div class="phase-track"><div class="phase-fill" style="width:75%;animation-delay:0.3s;"></div></div>
+            <div class="phase-pct">75%</div>
+          </div>
+          <div class="phase-row">
+            <div class="phase-label">Data Modelling</div>
+            <div class="phase-track"><div class="phase-fill" style="width:70%;animation-delay:0.4s;"></div></div>
+            <div class="phase-pct">70%</div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="card-sm" style="flex:1;">
+            <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:8px;">AI Contributions</div>
+            <ul style="font-size:13px;color:var(--text-2);line-height:1.8;padding-left:16px;">
+              <li>Defined 3 user personas (Claimant, Adjuster, Admin)</li>
+              <li>Mapped the end-to-end claim lifecycle</li>
+              <li>Identified QBE-specific claim types (motor, property, workers comp, travel, liability, health)</li>
+              <li>Proposed status pipeline: Pending → Under Review → Approved / Rejected</li>
+              <li>Designed seed data set for 6 realistic demo claims</li>
+            </ul>
+          </div>
+          <div class="card-sm" style="background:rgba(232,150,26,0.07);">
+            <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:6px;">Human Input</div>
+            <p style="font-size:13px;color:var(--text-2);line-height:1.5;">QBE domain context, challenge constraints, competitive differentiation strategy (AI-first adjudication as the key differentiator).</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 6 — Phase 2: Design ── -->
+  <div class="slide">
+    <div class="slide-num">Part 02 / Phase 2</div>
+    <div class="slide-inner">
+      <div class="part-label"><span class="dot"></span>Design — Phase 2</div>
+      <h2 class="slide-title">AI-Crafted <span>Design System</span></h2>
+      <div class="amber-line"></div>
+
+      <div class="grid-2" style="margin-top:24px;gap:24px;">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div class="card-sm">
+            <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:8px;">Theming Architecture</div>
+            <p style="font-size:13px;color:var(--text-2);line-height:1.5;">AI designed a full CSS custom properties system — 24 semantic tokens covering background, surface, border, text, accent, and state colours — for both light and dark themes.</p>
+          </div>
+          <div class="card-sm">
+            <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:8px;">Visual Identity</div>
+            <p style="font-size:13px;color:var(--text-2);line-height:1.5;">Warm amber (#e8961a) as accent, warm charcoal (#1a1710) for dark surfaces, cream white (#faf9f7) for light — intentionally distinct from competitor's purple/indigo theme.</p>
+          </div>
+          <div class="card-sm">
+            <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:8px;">Blueprint Aesthetic</div>
+            <p style="font-size:13px;color:var(--text-2);line-height:1.5;">Layered CSS linear-gradient grid (20px minor / 80px major) + 8 floating dashed-border squares with fp-float animation — unique, memorable background identity.</p>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">Design Decisions by AI</div>
+          <div class="phase-row">
+            <div class="phase-label">CSS Theming</div>
+            <div class="phase-track"><div class="phase-fill" style="width:95%;animation-delay:0.1s;"></div></div>
+            <div class="phase-pct">95%</div>
+          </div>
+          <div class="phase-row">
+            <div class="phase-label">Layout Structure</div>
+            <div class="phase-track"><div class="phase-fill" style="width:88%;animation-delay:0.2s;"></div></div>
+            <div class="phase-pct">88%</div>
+          </div>
+          <div class="phase-row">
+            <div class="phase-label">Component Design</div>
+            <div class="phase-track"><div class="phase-fill" style="width:85%;animation-delay:0.3s;"></div></div>
+            <div class="phase-pct">85%</div>
+          </div>
+          <div class="phase-row">
+            <div class="phase-label">Landing Page</div>
+            <div class="phase-track"><div class="phase-fill" style="width:92%;animation-delay:0.4s;"></div></div>
+            <div class="phase-pct">92%</div>
+          </div>
+          <div class="phase-row">
+            <div class="phase-label">Animations</div>
+            <div class="phase-track"><div class="phase-fill" style="width:90%;animation-delay:0.5s;"></div></div>
+            <div class="phase-pct">90%</div>
+          </div>
+
+          <div class="card-sm" style="background:rgba(232,150,26,0.07);margin-top:4px;">
+            <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:6px;">Key Design Outcome</div>
+            <p style="font-size:13px;color:var(--text-2);">Replaced competitor's identical sidebar layout with a top-nav design + warmer palette — creating clear visual differentiation.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 7 — Phase 3: Build ── -->
+  <div class="slide">
+    <div class="slide-num">Part 02 / Phase 3</div>
+    <div class="slide-inner">
+      <div class="part-label"><span class="dot"></span>Build — Phase 3</div>
+      <h2 class="slide-title">AI-Accelerated <span>Development</span></h2>
+      <div class="amber-line"></div>
+
+      <div class="grid-2" style="margin-top:24px;gap:28px;align-items:start;">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">Build Effort Breakdown</div>
+          <div class="phase-row">
+            <div class="phase-label">React Frontend</div>
+            <div class="phase-track"><div class="phase-fill" style="width:82%;"></div></div>
+            <div class="phase-pct">82%</div>
+          </div>
+          <div class="phase-row">
+            <div class="phase-label">Express API</div>
+            <div class="phase-track"><div class="phase-fill" style="width:78%;animation-delay:0.1s;"></div></div>
+            <div class="phase-pct">78%</div>
+          </div>
+          <div class="phase-row">
+            <div class="phase-label">AI Integration</div>
+            <div class="phase-track"><div class="phase-fill" style="width:75%;animation-delay:0.2s;"></div></div>
+            <div class="phase-pct">75%</div>
+          </div>
+          <div class="phase-row">
+            <div class="phase-label">Bug Fixes</div>
+            <div class="phase-track"><div class="phase-fill" style="width:85%;animation-delay:0.3s;"></div></div>
+            <div class="phase-pct">85%</div>
+          </div>
+          <div class="phase-row">
+            <div class="phase-label">Landing Page</div>
+            <div class="phase-track"><div class="phase-fill" style="width:95%;animation-delay:0.4s;"></div></div>
+            <div class="phase-pct">95%</div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="card-sm">
+            <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:8px;">Critical Bug Fixes by AI</div>
+            <ul style="font-size:12.5px;color:var(--text-2);line-height:1.8;padding-left:16px;">
+              <li><code style="color:var(--amber);font-size:11px;">seed.js</code> — process.exit(0) killing Node before Express bound to port 3001</li>
+              <li>Native binding error in <code style="color:var(--amber);font-size:11px;">@rolldown/binding-darwin-arm64</code> after npm corruption</li>
+              <li>Scroll reveal + dark mode CSS class conflicts in landing page</li>
+            </ul>
+          </div>
+          <div class="card-sm">
+            <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:8px;">AI Tools Used in Build</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <span class="tag tag-amber">Claude Code CLI</span>
+              <span class="tag tag-blue">Claude Sonnet 4.6</span>
+              <span class="tag tag-green">MCP Preview Tools</span>
+              <span class="tag tag-amber">IntersectionObserver</span>
+            </div>
+          </div>
+          <div class="card-sm" style="background:rgba(232,150,26,0.07);">
+            <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:6px;">Build Speed</div>
+            <p style="font-size:13px;color:var(--text-2);">Full-stack application built and deployed-ready in a single session — React + Node + AI integration + branding landing page.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 8 — Tooling Overview ── -->
+  <div class="slide">
+    <div class="slide-num">Part 03</div>
+    <div class="slide-inner">
+      <div class="part-label"><span class="dot"></span>Tooling Used</div>
+      <h2 class="slide-title">Build <span>Stack</span></h2>
+      <div class="amber-line"></div>
+
+      <div class="grid-4" style="margin-top:28px;">
+        <div class="tool-badge">
+          <div class="t-icon">⚛️</div>
+          <div class="t-name">React 18</div>
+          <div class="t-desc">UI framework — hooks, context, lazy routing</div>
+          <span class="tag tag-blue" style="margin-top:4px;">Frontend</span>
+        </div>
+        <div class="tool-badge">
+          <div class="t-icon">⚡</div>
+          <div class="t-name">Vite</div>
+          <div class="t-desc">Build tool with HMR + API proxy to backend</div>
+          <span class="tag tag-blue" style="margin-top:4px;">Frontend</span>
+        </div>
+        <div class="tool-badge">
+          <div class="t-icon">🌐</div>
+          <div class="t-name">React Router v6</div>
+          <div class="t-desc">Client-side routing with PrivateRoute guard</div>
+          <span class="tag tag-blue" style="margin-top:4px;">Frontend</span>
+        </div>
+        <div class="tool-badge">
+          <div class="t-icon">🎨</div>
+          <div class="t-name">CSS Variables</div>
+          <div class="t-desc">24-token design system, dual theme, no Tailwind runtime</div>
+          <span class="tag tag-blue" style="margin-top:4px;">Frontend</span>
+        </div>
+        <div class="tool-badge">
+          <div class="t-icon">🟢</div>
+          <div class="t-name">Node.js + Express</div>
+          <div class="t-desc">REST API — claims CRUD, auth, AI proxy routes</div>
+          <span class="tag tag-green" style="margin-top:4px;">Backend</span>
+        </div>
+        <div class="tool-badge">
+          <div class="t-icon">🗄️</div>
+          <div class="t-name">lowdb</div>
+          <div class="t-desc">JSON file-based persistence (db.json). Zero config.</div>
+          <span class="tag tag-green" style="margin-top:4px;">Backend</span>
+        </div>
+        <div class="tool-badge">
+          <div class="t-icon">🤖</div>
+          <div class="t-name">Claude API</div>
+          <div class="t-desc">Anthropic claude-sonnet-4-5 for claim analysis</div>
+          <span class="tag tag-amber" style="margin-top:4px;">AI</span>
+        </div>
+        <div class="tool-badge">
+          <div class="t-icon">🛠️</div>
+          <div class="t-name">Claude Code</div>
+          <div class="t-desc">AI pair programmer — wrote ~80% of the codebase</div>
+          <span class="tag tag-amber" style="margin-top:4px;">AI</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 9 — Component Map ── -->
+  <div class="slide">
+    <div class="slide-num">Part 03</div>
+    <div class="slide-inner">
+      <div class="part-label"><span class="dot"></span>Component Architecture</div>
+      <h2 class="slide-title">How the Pieces <span>Connect</span></h2>
+      <div class="amber-line"></div>
+
+      <div class="grid-2" style="margin-top:24px;gap:24px;align-items:start;">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">Frontend Structure</div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
+            <div class="card-sm" style="display:flex;gap:10px;align-items:center;">
+              <code style="color:var(--amber);font-size:11px;background:var(--surface-2);padding:3px 8px;border-radius:6px;">App.jsx</code>
+              <span style="color:var(--text-2);">ThemeContext, routing, PrivateRoute guard</span>
+            </div>
+            <div class="card-sm" style="display:flex;gap:10px;align-items:center;">
+              <code style="color:var(--amber);font-size:11px;background:var(--surface-2);padding:3px 8px;border-radius:6px;">Layout.jsx</code>
+              <span style="color:var(--text-2);">Top nav, theme toggle, user chip, logout</span>
+            </div>
+            <div class="card-sm" style="display:flex;gap:10px;align-items:center;">
+              <code style="color:var(--amber);font-size:11px;background:var(--surface-2);padding:3px 8px;border-radius:6px;">Landing.jsx</code>
+              <span style="color:var(--text-2);">Blueprint hero, scroll reveal, counters, CTA</span>
+            </div>
+            <div class="card-sm" style="display:flex;gap:10px;align-items:center;">
+              <code style="color:var(--amber);font-size:11px;background:var(--surface-2);padding:3px 8px;border-radius:6px;">Dashboard.jsx</code>
+              <span style="color:var(--text-2);">Stat cards, filter tabs, claims table</span>
+            </div>
+            <div class="card-sm" style="display:flex;gap:10px;align-items:center;">
+              <code style="color:var(--amber);font-size:11px;background:var(--surface-2);padding:3px 8px;border-radius:6px;">ClaimDetail.jsx</code>
+              <span style="color:var(--text-2);">Status pipeline, AI analysis panel, decision form</span>
+            </div>
+            <div class="card-sm" style="display:flex;gap:10px;align-items:center;">
+              <code style="color:var(--amber);font-size:11px;background:var(--surface-2);padding:3px 8px;border-radius:6px;">NewClaim.jsx</code>
+              <span style="color:var(--text-2);">Multi-section validated claim submission form</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">Backend Structure</div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
+            <div class="card-sm" style="display:flex;gap:10px;align-items:center;">
+              <code style="color:var(--amber);font-size:11px;background:var(--surface-2);padding:3px 8px;border-radius:6px;">index.js</code>
+              <span style="color:var(--text-2);">Express server entry — CORS, middleware, route mount</span>
+            </div>
+            <div class="card-sm" style="display:flex;gap:10px;align-items:center;">
+              <code style="color:var(--amber);font-size:11px;background:var(--surface-2);padding:3px 8px;border-radius:6px;">routes/claims.js</code>
+              <span style="color:var(--text-2);">GET /claims, POST, PATCH status, RBAC checks</span>
+            </div>
+            <div class="card-sm" style="display:flex;gap:10px;align-items:center;">
+              <code style="color:var(--amber);font-size:11px;background:var(--surface-2);padding:3px 8px;border-radius:6px;">routes/auth.js</code>
+              <span style="color:var(--text-2);">Login endpoint, user lookup, session token</span>
+            </div>
+            <div class="card-sm" style="display:flex;gap:10px;align-items:center;">
+              <code style="color:var(--amber);font-size:11px;background:var(--surface-2);padding:3px 8px;border-radius:6px;">routes/ai.js</code>
+              <span style="color:var(--text-2);">POST /ai/analyse — proxies to Claude API</span>
+            </div>
+            <div class="card-sm" style="display:flex;gap:10px;align-items:center;">
+              <code style="color:var(--amber);font-size:11px;background:var(--surface-2);padding:3px 8px;border-radius:6px;">db/database.js</code>
+              <span style="color:var(--text-2);">lowdb initialisation + schema defaults</span>
+            </div>
+            <div class="card-sm" style="display:flex;gap:10px;align-items:center;">
+              <code style="color:var(--amber);font-size:11px;background:var(--surface-2);padding:3px 8px;border-radius:6px;">db/seed.js</code>
+              <span style="color:var(--text-2);">6 realistic demo claims — idempotent guard</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 10 — Deployment Challenges ── -->
+  <div class="slide">
+    <div class="slide-num">Part 04</div>
+    <div class="slide-inner">
+      <div class="part-label"><span class="dot"></span>Deployment Challenges</div>
+      <h2 class="slide-title">Deploying to <span>QBE Dev Env</span></h2>
+      <div class="amber-line"></div>
+
+      <div class="grid-2" style="margin-top:24px;gap:20px;align-items:start;">
+        <div>
+          <div class="challenge-item">
+            <div class="ch-icon warn">⚠️</div>
+            <div>
+              <div class="ch-title">Database — lowdb vs Enterprise DB</div>
+              <div class="ch-body">Currently uses a flat JSON file (lowdb). QBE dev environment likely runs Oracle or PostgreSQL. Migration layer needed — schema maps cleanly, but connection string, ORM, and migration scripts must be added.</div>
+            </div>
+          </div>
+          <div class="challenge-item">
+            <div class="ch-icon warn">🔑</div>
+            <div>
+              <div class="ch-title">Authentication — SSO / LDAP Integration</div>
+              <div class="ch-body">Current auth uses hardcoded demo users. QBE dev env will require LDAP or SAML SSO integration (Active Directory). The auth middleware is isolated and can be swapped without touching the rest of the app.</div>
+            </div>
+          </div>
+          <div class="challenge-item">
+            <div class="ch-icon warn">🌐</div>
+            <div>
+              <div class="ch-title">Network Proxy &amp; CORS Policy</div>
+              <div class="ch-body">Vite's /api proxy is a dev-only config. In QBE's environment, a reverse proxy (nginx / Apache) or API gateway needs to be configured. CORS headers on the Express server must list QBE's internal domain.</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="challenge-item">
+            <div class="ch-icon info">🔐</div>
+            <div>
+              <div class="ch-title">Secrets Management — API Keys</div>
+              <div class="ch-body">The Anthropic API key is in a .env file. QBE's dev environment should use a vault (HashiCorp Vault / AWS Secrets Manager). The key must never be committed to internal SCM or exposed in build artifacts.</div>
+            </div>
+          </div>
+          <div class="challenge-item">
+            <div class="ch-icon info">📦</div>
+            <div>
+              <div class="ch-title">Node.js Version &amp; Package Registry</div>
+              <div class="ch-body">Requires Node ≥ 18 (ESM imports). Corporate npm registries may block public registry access — an .npmrc pointing to QBE's Nexus/Artifactory would be needed for all packages including Vite and Anthropic SDK.</div>
+            </div>
+          </div>
+          <div class="challenge-item">
+            <div class="ch-icon ok">✅</div>
+            <div>
+              <div class="ch-title">What Works Out of the Box</div>
+              <div class="ch-body">The React build produces static files (npm run build → dist/) that can be served by any web server. The Express API is containerisable with a single Dockerfile. No OS-specific native binaries in the production bundle.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 11 — Deployment Roadmap ── -->
+  <div class="slide">
+    <div class="slide-num">Part 04</div>
+    <div class="slide-inner-sm">
+      <div class="part-label"><span class="dot"></span>Deployment Roadmap</div>
+      <h2 class="slide-title">Path to <span>Production</span></h2>
+      <div class="amber-line"></div>
+
+      <div style="display:flex;flex-direction:column;gap:0;margin-top:28px;position:relative;">
+        <div style="position:absolute;left:19px;top:0;bottom:0;width:2px;background:var(--border);"></div>
+
+        <div style="display:flex;gap:20px;margin-bottom:22px;position:relative;">
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--amber);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#1a1710;flex-shrink:0;z-index:1;">1</div>
+          <div class="card-sm" style="flex:1;">
+            <div style="font-size:13px;font-weight:700;color:var(--text-1);margin-bottom:4px;">Swap Database Layer <span class="tag tag-amber" style="margin-left:8px;">Week 1</span></div>
+            <p style="font-size:12.5px;color:var(--text-2);">Replace lowdb with pg (PostgreSQL) or oracledb. The data schema is already clean — one file change in database.js + add migration scripts.</p>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:20px;margin-bottom:22px;position:relative;">
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--surface-2);border:2px solid var(--amber);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:var(--amber);flex-shrink:0;z-index:1;">2</div>
+          <div class="card-sm" style="flex:1;">
+            <div style="font-size:13px;font-weight:700;color:var(--text-1);margin-bottom:4px;">Auth Integration <span class="tag tag-blue" style="margin-left:8px;">Week 1–2</span></div>
+            <p style="font-size:12.5px;color:var(--text-2);">Wire Passport.js SAML or LDAP strategy into the existing auth middleware. The role-based access control logic is already in place — just needs real user lookup.</p>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:20px;margin-bottom:22px;position:relative;">
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--surface-2);border:2px solid var(--amber);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:var(--amber);flex-shrink:0;z-index:1;">3</div>
+          <div class="card-sm" style="flex:1;">
+            <div style="font-size:13px;font-weight:700;color:var(--text-1);margin-bottom:4px;">Containerise + Configure <span class="tag tag-green" style="margin-left:8px;">Week 2</span></div>
+            <p style="font-size:12.5px;color:var(--text-2);">Write Dockerfile for backend, configure nginx to serve React static files and proxy /api. Update .npmrc for internal package registry.</p>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:20px;position:relative;">
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--surface-2);border:2px solid var(--amber);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:var(--amber);flex-shrink:0;z-index:1;">4</div>
+          <div class="card-sm" style="flex:1;">
+            <div style="font-size:13px;font-weight:700;color:var(--text-1);margin-bottom:4px;">Secrets + CI/CD <span class="tag tag-green" style="margin-left:8px;">Week 3</span></div>
+            <p style="font-size:12.5px;color:var(--text-2);">Move ANTHROPIC_API_KEY to QBE's vault, configure CI pipeline (Jenkins / GitHub Actions) for build → test → deploy on merge to main.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SLIDE 12 — Closing ── -->
+  <div class="slide" id="slide-last">
+    <div class="deco-square" style="width:220px;height:220px;bottom:60px;right:60px;opacity:0.4;"></div>
+    <div class="deco-square" style="width:100px;height:100px;top:80px;right:240px;opacity:0.25;"></div>
+
+    <div style="text-align:center;max-width:680px;">
+      <div class="part-label" style="justify-content:center;margin-bottom:32px;">
+        <span class="live-dot"></span>
+        Demo Ready
+      </div>
+      <h1 class="hero-title">Thank <span>You</span></h1>
+      <p class="cover-sub" style="margin-top:16px;">ClaimsHub demonstrates how AI can be woven into every layer of a modern enterprise application — from ideation through to production-quality UI and intelligent claim processing.</p>
+
+      <div class="sep" style="margin:36px auto;max-width:400px;"></div>
+
+      <div style="display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin-bottom:36px;">
+        <div style="text-align:center;">
+          <div style="font-size:32px;font-weight:800;color:var(--amber);">~80%</div>
+          <div style="font-size:12px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.1em;margin-top:2px;">AI-Built</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:32px;font-weight:800;color:var(--amber);">3</div>
+          <div style="font-size:12px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.1em;margin-top:2px;">Phases</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:32px;font-weight:800;color:var(--amber);">2</div>
+          <div style="font-size:12px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.1em;margin-top:2px;">Themes</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:32px;font-weight:800;color:var(--amber);">1</div>
+          <div style="font-size:12px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.1em;margin-top:2px;">Session</div>
+        </div>
+      </div>
+
+      <div class="logo-text" style="font-size:22px;">Claims<span>Hub</span></div>
+      <p style="font-size:12px;color:var(--text-3);margin-top:6px;">Built for the QBE AI Challenge 2026</p>
+    </div>
+  </div>
+
+</div><!-- /deck -->
+
+<script>
+  const deck = document.getElementById('deck');
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let current = 0;
+
+  document.getElementById('totalSlides').textContent = total;
+
+  // Build nav dots
+  const dotsContainer = document.getElementById('navDots');
+  slides.forEach((_, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'dot-btn' + (i === 0 ? ' active' : '');
+    btn.onclick = () => goTo(i);
+    dotsContainer.appendChild(btn);
+  });
+
+  function updateUI() {
+    const pct = ((current + 1) / total * 100).toFixed(2);
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('currentSlide').textContent = current + 1;
+
+    document.querySelectorAll('.dot-btn').forEach((d, i) => {
+      d.classList.toggle('active', i === current);
+    });
+  }
+
+  function goTo(index) {
+    current = Math.max(0, Math.min(total - 1, index));
+    slides[current].scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+    updateUI();
+  }
+
+  function navigate(dir) { goTo(current + dir); }
+
+  // Keyboard navigation
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); navigate(1); }
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')                    { e.preventDefault(); navigate(-1); }
+    if (e.key === 'Home') goTo(0);
+    if (e.key === 'End')  goTo(total - 1);
+  });
+
+  // Scroll sync — detect which slide is in view
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+        const idx = Array.from(slides).indexOf(entry.target);
+        if (idx !== -1 && idx !== current) { current = idx; updateUI(); }
+        // Trigger visible animation
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.6, root: deck });
+
+  slides.forEach(s => observer.observe(s));
+
+  // Initial slide visible
+  slides[0].classList.add('visible');
+  updateUI();
+</script>
+</body>
+</html>

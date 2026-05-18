@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x \"/Users/tishypatel/Downloads/AI Challenge/claims-system/frontend/node_modules/.bin/vite\")",
+      "Bash(node node_modules/vite/bin/vite.js --port 5173)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
+      "Bash(rm -rf node_modules package-lock.json)",
+      "Bash(npm install *)",
+      "Bash(node node_modules/vite/bin/vite.js --port 5174)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5174/)",
+      "Bash(mkdir -p \"/Users/tishypatel/Downloads/AI Challenge/claims-system/.claude\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(pkill -f \"vite\")",
+      "Bash(node src/index.js)",
+      "Bash(curl -s http://localhost:3001/api/health)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(echo \"PID: $!\")",
+      "Read(//tmp/**)",
+      "Bash(cat /tmp/backend.log 2>/dev/null || echo \"no log\" *)",
+      "Bash(gtimeout 5 node src/index.js)",
+      "Bash(curl -v http://localhost:3001/api/health)",
+      "Bash(node -e \"import\\('./src/index.js'\\).catch\\(e => console.error\\(e.message\\)\\)\")",
+      "Bash(nohup node \"/Users/tishypatel/Downloads/AI Challenge/claims-system/backend/src/index.js\")",
+      "Bash(echo \"started pid $!\")",
+      "Bash(node --experimental-vm-modules \"/Users/tishypatel/Downloads/AI Challenge/claims-system/backend/src/index.js\")",
+      "Bash(npm start *)",
+      "Bash(curl -s http://localhost:3001/api/claims)",
+      "Bash(pkill -f \"serve -p 5174\")",
+      "Bash(npx serve *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5174/presentation.html)",
+      "Bash(curl -sL -o /dev/null -w \"%{http_code} %{url_effective}\" http://localhost:5174/presentation.html)",
+      "Bash(git init *)",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(git add *)"
+    ]
+  }
+}
