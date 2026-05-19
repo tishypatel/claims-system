@@ -355,6 +355,77 @@
     animation: pulse-amber 2s ease-in-out infinite;
     display: inline-block; margin-right: 6px;
   }
+
+  /* ── Mobile responsive ── */
+  @media (max-width: 768px) {
+    /* Switch to vertical scroll on mobile */
+    .deck {
+      flex-direction: column;
+      overflow-x: hidden;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+    }
+    .slide {
+      min-width: 100vw;
+      min-height: 100svh;
+      height: auto;
+      scroll-snap-align: start;
+      padding: 52px 20px 72px;
+      align-items: flex-start;
+    }
+    /* Hide decorative squares on mobile */
+    .deco-square { display: none; }
+
+    /* Two-col grids → single col */
+    .two-col       { grid-template-columns: 1fr !important; gap: 24px !important; }
+    .grid-2        { grid-template-columns: 1fr !important; }
+    .grid-3        { grid-template-columns: 1fr 1fr !important; }
+    .grid-4        { grid-template-columns: 1fr 1fr !important; }
+
+    /* Flow steps → vertical */
+    #slide-2 > .slide-inner > div[style*="display:flex"] {
+      flex-direction: column;
+    }
+    .flow-arrow { transform: rotate(90deg); }
+
+    /* Typography scale down */
+    h1.hero-title  { font-size: clamp(32px, 8vw, 52px); }
+    h2.slide-title { font-size: clamp(22px, 6vw, 36px); }
+    .stat-num      { font-size: clamp(24px, 6vw, 36px); }
+    .cover-sub     { font-size: 14px; }
+    .cover-meta    { gap: 18px; flex-wrap: wrap; justify-content: center; }
+
+    /* Phase bars */
+    .phase-label { width: 90px; font-size: 11px; }
+
+    /* Challenge cards */
+    .challenge-item { padding: 14px 16px; }
+    .ch-body { font-size: 12px; }
+
+    /* Nav dots — smaller */
+    .nav-dots { bottom: 14px; gap: 6px; }
+    .dot-btn  { width: 6px; height: 6px; }
+    .arrow-nav { bottom: 10px; right: 16px; gap: 6px; }
+    .arr-btn  { width: 32px; height: 32px; }
+    .slide-counter { bottom: 18px; left: 16px; font-size: 11px; }
+
+    /* Slide inner full width */
+    .slide-inner, .slide-inner-sm { max-width: 100%; }
+
+    /* Cover */
+    #slide-0 { text-align: center; justify-content: flex-start; padding-top: 64px; }
+
+    /* Tool badges 2-col already handled by grid-4 override */
+
+    /* Progress bar thicker for touch */
+    .progress-bar { height: 4px; }
+  }
+
+  @media (max-width: 480px) {
+    .grid-3 { grid-template-columns: 1fr !important; }
+    .grid-4 { grid-template-columns: 1fr !important; }
+    .slide  { padding: 52px 16px 72px; }
+  }
 </style>
 </head>
 <body>
@@ -1110,9 +1181,15 @@
     });
   }
 
+  function isMobile() { return window.innerWidth <= 768; }
+
   function goTo(index) {
     current = Math.max(0, Math.min(total - 1, index));
-    slides[current].scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+    slides[current].scrollIntoView({
+      behavior: 'smooth',
+      inline: isMobile() ? 'nearest' : 'start',
+      block:  isMobile() ? 'start'   : 'nearest',
+    });
     updateUI();
   }
 

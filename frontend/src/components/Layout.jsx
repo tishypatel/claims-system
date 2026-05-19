@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FilePlus, LogOut, ShieldCheck, Sun, Moon } from 'lucide-react'
+import { LayoutDashboard, FilePlus, LogOut, ShieldCheck, Sun, Moon, Menu, X } from 'lucide-react'
 import { useTheme } from '../App'
 
 const roleConfig = {
@@ -11,6 +12,7 @@ const roleConfig = {
 export default function Layout() {
   const navigate = useNavigate()
   const { dark, toggle } = useTheme()
+  const [menuOpen, setMenuOpen] = useState(false)
   const user = JSON.parse(localStorage.getItem('claims_user') || '{}')
   const rc = roleConfig[user.role] || roleConfig.claimant
   const initials = (user.name || 'U').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
@@ -20,9 +22,12 @@ export default function Layout() {
     navigate('/login')
   }
 
+  function closeMenu() { setMenuOpen(false) }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--bg)' }}>
-      {/* Top nav */}
+
+      {/* ── Top nav ── */}
       <header style={{
         position: 'sticky', top: 0, zIndex: 50,
         height: '56px',
@@ -30,13 +35,15 @@ export default function Layout() {
         borderBottom: '1px solid var(--border)',
         boxShadow: 'var(--shadow-xs)',
         display: 'flex', alignItems: 'center',
-        padding: '0 1.5rem',
+        padding: '0 1.25rem',
         gap: '0.75rem',
       }}>
+
         {/* Logo */}
         <NavLink
           to="/dashboard"
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', marginRight: '1rem', flexShrink: 0 }}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', marginRight: '0.5rem', flexShrink: 0 }}
+          onClick={closeMenu}
         >
           <div style={{
             width: '28px', height: '28px', borderRadius: '7px',
@@ -50,18 +57,16 @@ export default function Layout() {
           </span>
         </NavLink>
 
-        {/* Nav links */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '0.15rem', flex: 1 }}>
+        {/* Desktop nav links */}
+        <nav className="nav-desktop">
           <NavLink
             to="/dashboard"
-            id="nav-dashboard"
             className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
           >
             <LayoutDashboard size={14} /> Dashboard
           </NavLink>
           <NavLink
             to="/claims/new"
-            id="nav-new-claim"
             className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
           >
             <FilePlus size={14} /> File Claim
@@ -69,7 +74,8 @@ export default function Layout() {
         </nav>
 
         {/* Right side */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0, marginLeft: 'auto' }}>
+
           {/* Theme toggle */}
           <button
             onClick={toggle}
@@ -83,13 +89,11 @@ export default function Layout() {
               transition: 'all 0.15s ease', flexShrink: 0,
             }}
             title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-2)'; e.currentTarget.style.color = 'var(--text-1)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-2)' }}
           >
             {dark ? <Sun size={14} /> : <Moon size={14} />}
           </button>
 
-          <div style={{ width: '1px', height: '18px', background: 'var(--border)' }} />
+          <div className="nav-user-name" style={{ width: '1px', height: '18px', background: 'var(--border)' }} />
 
           {/* Avatar */}
           <div style={{
@@ -101,17 +105,17 @@ export default function Layout() {
             {initials}
           </div>
 
-          {/* Name */}
-          <div style={{ lineHeight: 1.2 }}>
+          {/* Name — hidden on mobile via CSS */}
+          <div className="nav-user-name" style={{ lineHeight: 1.2 }}>
             <p style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-1)' }}>{user.name}</p>
             <p style={{ fontSize: '0.62rem', color: rc.color, fontWeight: 600 }}>{rc.label}</p>
           </div>
 
-          {/* Logout */}
+          {/* Logout — desktop only */}
           <button
-            id="logout-btn"
             onClick={logout}
             title="Sign out"
+            className="nav-user-name"
             style={{
               width: '28px', height: '28px',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -124,8 +128,71 @@ export default function Layout() {
           >
             <LogOut size={14} />
           </button>
+
+          {/* Hamburger — mobile only */}
+          <button
+            className="hamburger-btn"
+            onClick={() => setMenuOpen(v => !v)}
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+          >
+            {menuOpen ? <X size={16} /> : <Menu size={16} />}
+          </button>
         </div>
       </header>
+
+      {/* ── Mobile menu overlay ── */}
+      <div className={`mobile-overlay${menuOpen ? ' open' : ''}`} onClick={closeMenu} />
+
+      {/* ── Mobile dropdown menu ── */}
+      <div className={`mobile-menu${menuOpen ? ' open' : ''}`}>
+        <NavLink
+          to="/dashboard"
+          className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+          onClick={closeMenu}
+        >
+          <LayoutDashboard size={16} /> Dashboard
+        </NavLink>
+        <NavLink
+          to="/claims/new"
+          className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+          onClick={closeMenu}
+        >
+          <FilePlus size={16} /> File Claim
+        </NavLink>
+
+        <div style={{ borderTop: '1px solid var(--border)', marginTop: '0.5rem', paddingTop: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.875rem', marginBottom: '0.25rem' }}>
+            <div style={{
+              width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
+              background: rc.bg,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '0.7rem', fontWeight: 700, color: rc.color,
+            }}>
+              {initials}
+            </div>
+            <div>
+              <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-1)' }}>{user.name}</p>
+              <p style={{ fontSize: '0.72rem', color: rc.color, fontWeight: 600 }}>{rc.label}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => { closeMenu(); logout() }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              width: '100%', padding: '0.6rem 0.875rem',
+              background: 'none', border: 'none',
+              borderRadius: 'var(--r-sm)',
+              fontSize: '0.875rem', fontWeight: 500, color: 'var(--danger)',
+              cursor: 'pointer', fontFamily: 'inherit',
+              transition: 'background 0.15s ease',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--danger-bg)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            <LogOut size={16} /> Sign out
+          </button>
+        </div>
+      </div>
 
       {/* Page content */}
       <main style={{ flex: 1, overflow: 'auto' }}>

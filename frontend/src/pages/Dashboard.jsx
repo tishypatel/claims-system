@@ -81,10 +81,10 @@ export default function Dashboard() {
   })()
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1300px', margin: '0 auto' }}>
+    <div className="page-container">
 
       {/* Page header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.75rem' }}>
+      <div className="page-header">
         <div>
           <h1 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-0.02em' }}>
             {greeting}{user.name ? `, ${user.name.split(' ')[0]}` : ''}
@@ -93,7 +93,7 @@ export default function Dashboard() {
             {new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <div className="page-header-actions">
           <button
             id="refresh-btn"
             onClick={() => fetchClaims(true)}
@@ -114,7 +114,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.75rem', marginBottom: '1.5rem' }}>
+      <div className="stats-grid">
         {STAT_CONFIG.map(s => (
           <div
             key={s.key}
@@ -144,7 +144,7 @@ export default function Dashboard() {
       </div>
 
       {/* Toolbar: exposure + filters + search */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.75rem', flexWrap: 'wrap' }}>
+      <div className="dash-toolbar">
         {/* Total exposure pill */}
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
@@ -161,7 +161,7 @@ export default function Dashboard() {
         </div>
 
         {/* Filter tabs + search */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div className="dash-toolbar-right">
           <div style={{
             display: 'flex', gap: '0.15rem',
             background: 'var(--surface-2)',
@@ -207,7 +207,7 @@ export default function Dashboard() {
       </div>
 
       {/* Claims table */}
-      <div className="card" style={{ overflow: 'hidden' }}>
+      <div className="card table-scroll">
         {loading ? (
           <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-3)' }}>
             <Loader2 size={28} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 0.75rem' }} />

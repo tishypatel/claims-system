@@ -78,7 +78,7 @@ export default function NewClaim() {
   }
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '760px', margin: '0 auto' }}>
+    <div className="page-container-sm">
 
       <button
         onClick={() => navigate(-1)}
@@ -101,7 +101,7 @@ export default function NewClaim() {
 
         {/* Claimant info */}
         <FormSection icon={User} title="Claimant Information">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
+          <div className="form-grid-2">
             <Field label="Full Name *">
               <input id="field-name" className="input-field" value={form.claimant_name} onChange={set('claimant_name')} required />
             </Field>
@@ -119,7 +119,7 @@ export default function NewClaim() {
 
         {/* Claim details */}
         <FormSection icon={FileText} title="Claim Details">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
+          <div className="form-grid-2">
             <Field label="Claim Type *">
               <select id="field-type" className="input-field" value={form.claim_type} onChange={set('claim_type')}>
                 {CLAIM_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}

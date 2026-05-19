@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ShieldCheck, Sun, Moon, Zap, Clock, Users, BarChart3,
-  Shield, ArrowRight, CheckCircle, FileText, Search, Bell, Lock,
+  Shield, ArrowRight, CheckCircle, FileText, Search, Bell, Lock, Menu, X,
 } from 'lucide-react'
 import { useTheme } from '../App'
 
@@ -121,6 +121,7 @@ export default function Landing() {
   const navigate = useNavigate()
   const { dark, toggle } = useTheme()
   const [scrolled, setScrolled] = useState(false)
+  const [mobileNav, setMobileNav] = useState(false)
 
   const [heroRef, heroVisible]         = useReveal(0.1)
   const [statsRef, statsVisible]       = useReveal(0.3)
@@ -195,7 +196,8 @@ export default function Landing() {
           <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-1)', letterSpacing: '-0.01em' }}>ClaimsHub</span>
         </div>
 
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginRight: '1.5rem' }}>
+        {/* Desktop nav links */}
+        <nav className="landing-nav-links">
           {['Features', 'How it works', 'Pricing'].map(item => (
             <a key={item} href={`#${item.toLowerCase().replace(/ /g, '-')}`} style={{
               padding: '0.35rem 0.75rem', borderRadius: 6,
@@ -220,7 +222,8 @@ export default function Landing() {
           }}>
             {dark ? <Sun size={14} /> : <Moon size={14} />}
           </button>
-          <button onClick={() => navigate('/login')} style={{
+          {/* Desktop CTA buttons */}
+          <button onClick={() => navigate('/login')} className="landing-nav-cta" style={{
             padding: '0.4rem 0.875rem', borderRadius: 6,
             background: 'transparent', border: '1.5px solid var(--border)',
             fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-1)',
@@ -231,7 +234,7 @@ export default function Landing() {
           >
             Sign in
           </button>
-          <button onClick={() => navigate('/login')} style={{
+          <button onClick={() => navigate('/login')} className="landing-nav-cta" style={{
             padding: '0.4rem 0.875rem', borderRadius: 6,
             background: 'var(--accent)', border: 'none',
             fontSize: '0.85rem', fontWeight: 600, color: 'white',
@@ -242,8 +245,64 @@ export default function Landing() {
           >
             Get started →
           </button>
+          {/* Mobile hamburger */}
+          <button
+            className="landing-hamburger"
+            onClick={() => setMobileNav(v => !v)}
+            aria-label="Toggle menu"
+            style={{
+              width: 32, height: 32, borderRadius: 7,
+              background: 'var(--surface-2)', border: '1.5px solid var(--border)',
+              display: 'none', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: 'var(--text-2)',
+            }}
+          >
+            {mobileNav ? <X size={16} /> : <Menu size={16} />}
+          </button>
         </div>
       </header>
+
+      {/* Mobile nav drawer */}
+      {mobileNav && (
+        <div style={{
+          position: 'fixed', top: 60, left: 0, right: 0, zIndex: 200,
+          background: 'var(--surface)',
+          borderBottom: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-md)',
+          padding: '1rem',
+          display: 'flex', flexDirection: 'column', gap: '0.25rem',
+        }}>
+          {['Features', 'How it works', 'Pricing'].map(item => (
+            <a key={item} href={`#${item.toLowerCase().replace(/ /g, '-')}`}
+              onClick={() => setMobileNav(false)}
+              style={{
+                padding: '0.7rem 0.875rem', borderRadius: 8,
+                fontSize: '0.95rem', fontWeight: 500,
+                color: 'var(--text-2)', textDecoration: 'none',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              {item}
+            </a>
+          ))}
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem', marginTop: '0.25rem', display: 'flex', gap: '0.5rem' }}>
+            <button onClick={() => { setMobileNav(false); navigate('/login') }} style={{
+              flex: 1, padding: '0.6rem',
+              background: 'transparent', border: '1.5px solid var(--border)',
+              borderRadius: 8, fontSize: '0.875rem', fontWeight: 600,
+              color: 'var(--text-1)', cursor: 'pointer', fontFamily: 'inherit',
+            }}>Sign in</button>
+            <button onClick={() => { setMobileNav(false); navigate('/login') }} style={{
+              flex: 1, padding: '0.6rem',
+              background: 'var(--accent)', border: 'none',
+              borderRadius: 8, fontSize: '0.875rem', fontWeight: 600,
+              color: 'white', cursor: 'pointer', fontFamily: 'inherit',
+            }}>Get started</button>
+          </div>
+        </div>
+      )}
 
       {/* ── Hero ─────────────────────────────────────────────── */}
       <section
@@ -373,10 +432,8 @@ export default function Landing() {
           border: '1px solid var(--border)',
           borderRadius: 'var(--r-lg)',
           boxShadow: 'var(--shadow-md)',
-          padding: '2.5rem 3rem',
-          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: '1rem',
-        }}>
+          padding: '2.5rem 1.5rem',
+        }} className="landing-stats-grid">
           {[
             { value: 54000,  suffix: '+', label: 'Claims Processed' },
             { value: 98,     suffix: '%', label: 'Accuracy Rate' },
@@ -415,7 +472,7 @@ export default function Landing() {
             </h2>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+          <div className="landing-features-grid">
             {features.map((f, i) => (
               <FeatureCard key={i} {...f} delay={i * 80} visible={featuresVisible} />
             ))}
@@ -439,9 +496,9 @@ export default function Landing() {
             </h2>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', position: 'relative' }}>
+          <div className="landing-steps-grid">
             {/* Connector line */}
-            <div style={{
+            <div className="landing-steps-connector" style={{
               position: 'absolute', top: 40, left: '16.66%', right: '16.66%', height: 2,
               background: 'linear-gradient(90deg, var(--accent-border), var(--accent), var(--accent-border))',
               zIndex: 0,
@@ -489,7 +546,7 @@ export default function Landing() {
       >
         <div style={{
           maxWidth: 720, margin: '0 auto', textAlign: 'center',
-          padding: '3.5rem 3rem',
+          padding: 'clamp(1.5rem, 4vw, 3.5rem) clamp(1.25rem, 4vw, 3rem)',
           background: 'var(--surface)',
           border: '1px solid var(--border)',
           borderRadius: 20,
@@ -580,6 +637,29 @@ export default function Landing() {
           0%, 100% { transform: translateY(0px) rotate(0deg); }
           33%       { transform: translateY(-14px) rotate(1.2deg); }
           66%       { transform: translateY(-6px) rotate(-0.8deg); }
+        }
+
+        /* Landing responsive */
+        .landing-features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .landing-steps-grid    { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; position: relative; }
+        .landing-stats-grid    { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+        .landing-nav-links     { display: flex; align-items: center; gap: 0.25rem; margin-right: 1.5rem; }
+        .landing-nav-cta       { display: inline-flex; }
+        .landing-hamburger     { display: none !important; }
+        .landing-steps-connector { display: block; }
+
+        @media (max-width: 900px) {
+          .landing-features-grid { grid-template-columns: repeat(2, 1fr); }
+          .landing-steps-grid    { grid-template-columns: 1fr; }
+          .landing-steps-connector { display: none !important; }
+          .landing-stats-grid    { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 640px) {
+          .landing-features-grid { grid-template-columns: 1fr; }
+          .landing-stats-grid    { grid-template-columns: repeat(2, 1fr); }
+          .landing-nav-links     { display: none !important; }
+          .landing-nav-cta       { display: none !important; }
+          .landing-hamburger     { display: flex !important; }
         }
       `}</style>
     </div>

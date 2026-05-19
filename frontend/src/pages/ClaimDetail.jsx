@@ -118,7 +118,7 @@ export default function ClaimDetail() {
   const pipelineIdx = STATUS_FLOW.findIndex(s => s.key === (claim.status === 'rejected' ? 'rejected' : claim.status))
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1100px', margin: '0 auto' }}>
+    <div className="page-container-md">
 
       {/* Back */}
       <button onClick={() => navigate(-1)} className="btn-ghost" style={{ marginBottom: '1.5rem', fontSize: '0.82rem', padding: '0.4rem 0.75rem' }}>
@@ -228,13 +228,13 @@ export default function ClaimDetail() {
       )}
 
       {/* Body */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 308px', gap: '1rem', alignItems: 'start' }}>
+      <div className="detail-body">
 
         {/* Left */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
           <SectionCard icon={User} title="Claimant Information">
-            <dl style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem 1.5rem' }}>
+            <dl className="info-grid-2">
               <InfoRow label="Full Name"     value={claim.claimant_name} />
               <InfoRow label="Email"         value={claim.claimant_email} />
               <InfoRow label="Phone"         value={claim.claimant_phone} />
