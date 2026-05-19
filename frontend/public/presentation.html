@@ -356,6 +356,12 @@
     display: inline-block; margin-right: 6px;
   }
 
+  /* Hint text visibility (desktop default) */
+  .nav-hint { display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .nav-hint-text-desktop { display: inline; }
+  .nav-hint-text-mobile  { display: none; }
+  .nav-hint::before { content: none; }
+
   /* ── Mobile responsive ── */
   @media (max-width: 768px) {
     /* Switch to vertical scroll on mobile */
@@ -377,7 +383,7 @@
     .deco-square { display: none; }
 
     /* Two-col grids → single col */
-    .two-col       { grid-template-columns: 1fr !important; gap: 24px !important; }
+    .two-col       { grid-template-columns: 1fr !important; gap: 20px !important; }
     .grid-2        { grid-template-columns: 1fr !important; }
     .grid-3        { grid-template-columns: 1fr 1fr !important; }
     .grid-4        { grid-template-columns: 1fr 1fr !important; }
@@ -412,19 +418,188 @@
     /* Slide inner full width */
     .slide-inner, .slide-inner-sm { max-width: 100%; }
 
-    /* Cover */
-    #slide-0 { text-align: center; justify-content: flex-start; padding-top: 64px; }
-
-    /* Tool badges 2-col already handled by grid-4 override */
+    /* Cover base */
+    #slide-0 { text-align: center; justify-content: flex-start; padding-top: 56px; }
 
     /* Progress bar thicker for touch */
     .progress-bar { height: 4px; }
+
+    /* ══ SLIDE 0 MOBILE ENHANCEMENTS ══════════════════════════ */
+
+    /* Amber radial glow behind the hero title */
+    #slide-0::before {
+      content: '';
+      position: absolute;
+      top: 15%; left: 50%;
+      transform: translateX(-50%);
+      width: 280px; height: 280px;
+      background: radial-gradient(circle, rgba(232,150,26,0.18) 0%, transparent 70%);
+      pointer-events: none; z-index: 0;
+      border-radius: 50%;
+    }
+    #slide-0 > * { position: relative; z-index: 1; }
+
+    /* Badge — larger, more padding */
+    #slide-0 .cover-badge {
+      font-size: 11px;
+      padding: 7px 18px;
+      margin-bottom: 20px;
+      letter-spacing: 0.12em;
+    }
+
+    /* Hero title — tighter, more impactful */
+    #slide-0 h1.hero-title {
+      font-size: clamp(44px, 13vw, 64px);
+      letter-spacing: -0.04em;
+      margin-bottom: 14px;
+    }
+
+    /* Subtitle */
+    #slide-0 .cover-sub {
+      font-size: 13.5px;
+      line-height: 1.65;
+      color: #a89e8a;
+      max-width: 320px;
+      margin: 0 auto 28px;
+    }
+
+    /* Meta grid — 2×2 instead of a row */
+    #slide-0 .cover-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      width: 100%;
+      max-width: 300px;
+      margin: 0 auto;
+    }
+    #slide-0 .meta-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    #slide-0 .meta-item .m-val {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--amber);
+      line-height: 1;
+    }
+    #slide-0 .meta-item .m-key {
+      font-size: 10px;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    /* Swipe hint — hide text, show swipe hint */
+    .nav-hint {
+      font-size: 11px;
+      margin-top: 24px;
+      color: var(--text-3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .nav-hint::before {
+      content: '↕';
+      font-size: 14px;
+      color: var(--amber);
+      opacity: 0.7;
+    }
+    .nav-hint-text-desktop { display: none; }
+    .nav-hint-text-mobile  { display: inline; }
+
+    /* ══ SLIDE 1 MOBILE ENHANCEMENTS ══════════════════════════ */
+
+    /* Slide 1 — add top padding for slide-num badge */
+    #slide-1 { padding-top: 52px; }
+
+    /* Slide-num repositioned for mobile */
+    #slide-1 .slide-num {
+      top: 16px; left: 20px;
+      font-size: 10px;
+    }
+
+    /* Part label — slightly smaller */
+    #slide-1 .part-label {
+      font-size: 10px;
+      padding: 4px 12px;
+      margin-bottom: 14px;
+    }
+
+    /* Title */
+    #slide-1 h2.slide-title {
+      font-size: clamp(28px, 8vw, 40px);
+      margin-bottom: 10px;
+    }
+
+    /* Amber underline */
+    #slide-1 .amber-line { margin-bottom: 14px; }
+
+    /* Lead text */
+    #slide-1 .lead {
+      font-size: 13px;
+      line-height: 1.65;
+      color: #a89e8a;
+      max-width: 100%;
+    }
+
+    /* Pills row */
+    #slide-1 .pill {
+      font-size: 11px;
+      padding: 4px 10px;
+      margin: 3px 2px;
+    }
+
+    /* Right column cards — add left amber accent stripe */
+    #slide-1 .two-col > div:last-child .card-sm {
+      border-left: 3px solid var(--amber);
+      border-radius: 10px;
+    }
+
+    /* Card labels */
+    #slide-1 .card-sm > div:first-child {
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      margin-bottom: 6px;
+    }
+
+    /* Card body text */
+    #slide-1 .card-sm > p {
+      font-size: 12.5px;
+      line-height: 1.55;
+    }
+
+    /* Section divider between left & right halves */
+    #slide-1 .two-col > div:last-child {
+      border-top: 1px solid rgba(232,150,26,0.2);
+      padding-top: 20px;
+      margin-top: 4px;
+    }
+
+    /* Target users tags */
+    #slide-1 .tag {
+      font-size: 11px;
+      padding: 4px 10px;
+    }
   }
 
   @media (max-width: 480px) {
     .grid-3 { grid-template-columns: 1fr !important; }
     .grid-4 { grid-template-columns: 1fr !important; }
     .slide  { padding: 52px 16px 72px; }
+
+    /* Cover on small phones */
+    #slide-0 .cover-meta { max-width: 260px; }
+    #slide-0 h1.hero-title { font-size: clamp(40px, 12vw, 58px); }
+
+    /* Slide 1 on small phones */
+    #slide-1 h2.slide-title { font-size: 26px; }
   }
 </style>
 </head>
@@ -477,11 +652,14 @@
       <div class="meta-item"><div class="m-val">Live</div><div class="m-key">Demo Ready</div></div>
     </div>
 
-    <p style="margin-top:48px;font-size:12px;color:var(--text-3);">Use ← → arrow keys or click the arrows to navigate</p>
+    <p class="nav-hint" style="margin-top:48px;font-size:12px;color:var(--text-3);">
+      <span class="nav-hint-text-desktop">Use ← → arrow keys or click the arrows to navigate</span>
+      <span class="nav-hint-text-mobile">Swipe up &amp; down to navigate</span>
+    </p>
   </div>
 
   <!-- ── SLIDE 1 — App Objective ── -->
-  <div class="slide">
+  <div class="slide" id="slide-1">
     <div class="slide-num">Part 01</div>
     <div class="two-col">
       <div class="two-col-left">
