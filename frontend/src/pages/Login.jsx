@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ShieldCheck, Eye, EyeOff, ArrowRight, Sun, Moon } from 'lucide-react'
+import { ShieldCheck, Eye, EyeOff, ArrowRight, ArrowLeft, Sun, Moon } from 'lucide-react'
 import { useTheme } from '../App'
 
 const DEMO_USERS = [
@@ -48,6 +48,29 @@ export default function Login() {
       padding: '1.5rem',
       transition: 'background 0.2s ease',
     }}>
+      {/* Back to landing */}
+      <button
+        onClick={() => navigate('/')}
+        style={{
+          position: 'fixed', top: '1rem', left: '1rem',
+          height: '36px', padding: '0 0.75rem',
+          display: 'flex', alignItems: 'center', gap: '0.35rem',
+          background: 'var(--surface)',
+          border: '1.5px solid var(--border)',
+          borderRadius: '8px',
+          cursor: 'pointer', color: 'var(--text-2)',
+          fontSize: '0.78rem', fontWeight: 600,
+          fontFamily: 'inherit',
+          boxShadow: 'var(--shadow-sm)',
+          transition: 'all 0.15s ease',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)' }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-2)' }}
+      >
+        <ArrowLeft size={13} />
+        <span>Back</span>
+      </button>
+
       {/* Theme toggle */}
       <button
         onClick={toggle}

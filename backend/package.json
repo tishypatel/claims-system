@@ -8,8 +8,11 @@
     "dev": "node --watch src/index.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.99.0",
     "cors": "^2.8.5",
     "express": "^4.19.2",
-    "lowdb": "^7.0.1"
+    "lowdb": "^7.0.1",
+    "multer": "^2.1.1",
+    "openai": "^6.39.0"
   }
 }

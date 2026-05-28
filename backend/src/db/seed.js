@@ -1,5 +1,33 @@
 import { db } from './database.js'
 
+// ── Schema migration: ensure new collections/fields exist ───────
+if (!db.data.documents)   { db.data.documents   = [] }
+if (!db.data.audit_logs)  { db.data.audit_logs  = [] }
+if (!db.data.nextDocId)   { db.data.nextDocId   = 1 }
+if (!db.data.nextAuditId) { db.data.nextAuditId = 1 }
+
+const SLA_DAYS = { motor: 5, property: 10, liability: 15, workers_comp: 7, health: 3, travel: 5 }
+function calcPriority(amount) {
+  if (amount >= 20000) return 'high'
+  if (amount >= 5000)  return 'medium'
+  return 'low'
+}
+for (const c of db.data.claims) {
+  if (c.priority === undefined)        c.priority        = calcPriority(Number(c.amount))
+  if (c.sla_due === undefined)         c.sla_due         = (() => { const d = new Date(c.created_at); d.setDate(d.getDate() + (SLA_DAYS[c.claim_type] ?? 7)); return d.toISOString() })()
+  if (c.approved_amount === undefined) c.approved_amount = null
+  if (c.excess === undefined)          c.excess          = 0
+  if (c.net_payout === undefined)      c.net_payout      = null
+  if (c.payment_status === undefined)  c.payment_status  = null
+  if (c.paid_at === undefined)         c.paid_at         = null
+  if (c.paid_by === undefined)         c.paid_by         = null
+  if (c.fraud_score === undefined)     c.fraud_score     = null
+  if (c.fraud_flags === undefined)     c.fraud_flags     = []
+  if (c.fraud_confidence === undefined) c.fraud_confidence = null
+  if (c.fraud_summary === undefined)   c.fraud_summary   = null
+}
+await db.write()
+
 if (db.data.claims.length === 0) {
   const now = () => new Date().toISOString()
 

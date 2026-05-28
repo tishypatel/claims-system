@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from '../api'
-import { FilePlus, TrendingUp, Clock, CheckCircle, XCircle, Search, Eye, Loader2, RefreshCw } from 'lucide-react'
+import {
+  FilePlus, TrendingUp, Clock, CheckCircle, XCircle,
+  Search, Eye, Loader2, RefreshCw, AlertTriangle, ArrowUp, Brain,
+} from 'lucide-react'
 import StatusBadge from '../components/StatusBadge'
 
 const CLAIM_TYPE_LABELS = {
@@ -25,6 +28,75 @@ const STAT_CONFIG = [
   { key: 'rejected',     label: 'Rejected',     icon: XCircle,     color: 'var(--danger)',   bg: 'var(--danger-bg)' },
 ]
 
+const PRIORITY_CONFIG = {
+  high:   { color: 'var(--danger)',  bg: 'var(--danger-bg)',  label: 'High' },
+  medium: { color: 'var(--warning)', bg: 'var(--warning-bg)', label: 'Med' },
+  low:    { color: 'var(--success)', bg: 'var(--success-bg)', label: 'Low' },
+}
+
+function slaDaysLeft(slaDue) {
+  if (!slaDue) return null
+  return Math.ceil((new Date(slaDue) - Date.now()) / 86400000)
+}
+
+function SlaChip({ slaDue, status }) {
+  if (!slaDue || ['approved', 'rejected', 'closed'].includes(status)) return null
+  const days = slaDaysLeft(slaDue)
+  const overdue = days < 0
+  const urgent  = days <= 1 && !overdue
+  const color   = overdue ? 'var(--danger)' : urgent ? 'var(--warning)' : 'var(--success)'
+  const bg      = overdue ? 'var(--danger-bg)' : urgent ? 'var(--warning-bg)' : 'var(--success-bg)'
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
+      padding: '0.15rem 0.45rem', borderRadius: '99px',
+      fontSize: '0.68rem', fontWeight: 700,
+      color, background: bg, whiteSpace: 'nowrap',
+    }}>
+      {overdue ? <AlertTriangle size={10} /> : <Clock size={10} />}
+      {overdue ? `${Math.abs(days)}d over` : `${days}d left`}
+    </span>
+  )
+}
+
+function PriorityBadge({ priority }) {
+  if (!priority) return null
+  const c = PRIORITY_CONFIG[priority] || PRIORITY_CONFIG.medium
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
+      padding: '0.15rem 0.45rem', borderRadius: '99px',
+      fontSize: '0.65rem', fontWeight: 700,
+      color: c.color, background: c.bg,
+    }}>
+      {priority === 'high' && <ArrowUp size={9} />}
+      {c.label}
+    </span>
+  )
+}
+
+const TRIAGE_CONFIG = {
+  simple:   { color: 'var(--success)', bg: 'var(--success-bg)', label: 'Simple' },
+  moderate: { color: 'var(--warning)', bg: 'var(--warning-bg)', label: 'Moderate' },
+  complex:  { color: 'var(--danger)',  bg: 'var(--danger-bg)',  label: 'Complex' },
+}
+
+function TriageBadge({ triage }) {
+  if (!triage?.complexity) return <span style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>—</span>
+  const c = TRIAGE_CONFIG[triage.complexity] || TRIAGE_CONFIG.moderate
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
+      padding: '0.15rem 0.45rem', borderRadius: '99px',
+      fontSize: '0.65rem', fontWeight: 700,
+      color: c.color, background: c.bg,
+    }}>
+      <Brain size={9} />
+      {c.label}
+    </span>
+  )
+}
+
 export default function Dashboard() {
   const [claims, setClaims]         = useState([])
   const [loading, setLoading]       = useState(true)
@@ -38,7 +110,12 @@ export default function Dashboard() {
     if (!silent) setLoading(true)
     else setRefreshing(true)
     try {
-      const r = await axios.get('/api/claims')
+      const params = {}
+      if (user.role === 'claimant' && user.email) {
+        params.role = 'claimant'
+        params.email = user.email
+      }
+      const r = await axios.get('/api/claims', { params })
       setClaims(r.data)
     } catch (e) {
       console.error(e)
@@ -58,7 +135,10 @@ export default function Dashboard() {
     rejected:     claims.filter(c => c.status === 'rejected').length,
   }
 
-  const totalAmount = claims.reduce((s, c) => s + Number(c.amount), 0)
+  const totalAmount  = claims.reduce((s, c) => s + Number(c.amount), 0)
+  const overdueCount = claims.filter(c =>
+    !['approved', 'rejected', 'closed'].includes(c.status) && c.sla_due && slaDaysLeft(c.sla_due) < 0
+  ).length
 
   const filtered = claims
     .filter(c => filter === 'all' || c.status === filter)
@@ -69,7 +149,8 @@ export default function Dashboard() {
         c.claimant_name.toLowerCase().includes(q) ||
         c.policy_number.toLowerCase().includes(q) ||
         c.claim_type.toLowerCase().includes(q) ||
-        String(c.id).includes(q)
+        String(c.id).includes(q) ||
+        (c.location || '').toLowerCase().includes(q)
       )
     })
 
@@ -95,7 +176,6 @@ export default function Dashboard() {
         </div>
         <div className="page-header-actions">
           <button
-            id="refresh-btn"
             onClick={() => fetchClaims(true)}
             disabled={refreshing}
             className="btn-ghost"
@@ -103,15 +183,33 @@ export default function Dashboard() {
           >
             <RefreshCw size={14} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
           </button>
-          <button
-            id="new-claim-btn"
-            onClick={() => navigate('/claims/new')}
-            className="btn-primary"
-          >
+          <button onClick={() => navigate('/claims/new')} className="btn-primary">
             <FilePlus size={14} /> New Claim
           </button>
         </div>
       </div>
+
+      {/* SLA overdue alert */}
+      {!loading && overdueCount > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '0.625rem',
+          padding: '0.75rem 1rem',
+          background: 'var(--danger-bg)', border: '1px solid var(--danger-border)',
+          borderRadius: 'var(--r-md)', marginBottom: '1rem',
+          fontSize: '0.82rem', color: 'var(--danger-text)',
+        }}>
+          <AlertTriangle size={15} color="var(--danger)" style={{ flexShrink: 0 }} />
+          <span>
+            <strong>{overdueCount} claim{overdueCount > 1 ? 's' : ''}</strong> {overdueCount > 1 ? 'have' : 'has'} breached SLA and require{overdueCount === 1 ? 's' : ''} immediate attention.
+          </span>
+          <button
+            onClick={() => setFilter('pending')}
+            style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', fontSize: '0.78rem', fontWeight: 700, fontFamily: 'inherit' }}
+          >
+            View →
+          </button>
+        </div>
+      )}
 
       {/* Stat cards */}
       <div className="stats-grid">
@@ -120,11 +218,7 @@ export default function Dashboard() {
             key={s.key}
             className="card"
             onClick={() => setFilter(s.key === 'total' ? 'all' : s.key)}
-            style={{
-              padding: '1rem 1.125rem',
-              cursor: 'pointer',
-              borderLeft: `3px solid ${s.color}`,
-            }}
+            style={{ padding: '1rem 1.125rem', cursor: 'pointer', borderLeft: `3px solid ${s.color}` }}
             onMouseEnter={e => { e.currentTarget.style.boxShadow = 'var(--shadow-md)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
             onMouseLeave={e => { e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; e.currentTarget.style.transform = 'none' }}
           >
@@ -143,44 +237,35 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Toolbar: exposure + filters + search */}
+      {/* Toolbar */}
       <div className="dash-toolbar">
-        {/* Total exposure pill */}
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
           padding: '0.4rem 0.875rem',
-          background: 'var(--accent-bg)',
-          border: '1px solid var(--accent-border)',
+          background: 'var(--accent-bg)', border: '1px solid var(--accent-border)',
           borderRadius: '99px',
         }}>
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent)', flexShrink: 0 }} />
-          <span style={{ fontSize: '0.78rem', color: 'var(--text-2)', fontWeight: 500 }}>Total Exposure</span>
+          <span style={{ fontSize: '0.78rem', color: 'var(--text-2)', fontWeight: 500 }}>{user.role === 'claimant' ? 'Total Claimed' : 'Total Exposure'}</span>
           <span style={{ fontSize: '0.875rem', fontWeight: 800, color: 'var(--accent-text)' }}>
             {loading ? '…' : `$${totalAmount.toLocaleString()} AUD`}
           </span>
         </div>
 
-        {/* Filter tabs + search */}
         <div className="dash-toolbar-right">
           <div style={{
             display: 'flex', gap: '0.15rem',
-            background: 'var(--surface-2)',
-            padding: '0.2rem',
-            borderRadius: '8px',
-            border: '1px solid var(--border)',
+            background: 'var(--surface-2)', padding: '0.2rem',
+            borderRadius: '8px', border: '1px solid var(--border)',
           }}>
             {FILTERS.map(f => (
               <button
                 key={f.key}
-                id={`filter-${f.key}`}
                 onClick={() => setFilter(f.key)}
                 style={{
-                  padding: '0.28rem 0.7rem',
-                  borderRadius: '6px',
+                  padding: '0.28rem 0.7rem', borderRadius: '6px',
                   fontSize: '0.78rem', fontWeight: 600,
-                  border: 'none', cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  fontFamily: 'inherit',
+                  border: 'none', cursor: 'pointer', transition: 'all 0.15s ease', fontFamily: 'inherit',
                   ...(filter === f.key
                     ? { background: 'var(--surface)', color: 'var(--accent)', boxShadow: 'var(--shadow-xs)' }
                     : { background: 'transparent', color: 'var(--text-3)' }),
@@ -194,7 +279,6 @@ export default function Dashboard() {
           <div style={{ position: 'relative' }}>
             <Search size={13} style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', pointerEvents: 'none' }} />
             <input
-              id="search-claims"
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -222,18 +306,14 @@ export default function Dashboard() {
           <table className="data-table">
             <thead>
               <tr>
-                {['Claim ID', 'Claimant', 'Type', 'Amount', 'Incident Date', 'Status', ''].map(h => (
+                {['Claim ID', 'Claimant', 'Type', 'Amount', 'Triage', 'Priority', 'SLA', 'Status', ''].map(h => (
                   <th key={h}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.map(c => (
-                <tr
-                  key={c.id}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => navigate(`/claims/${c.id}`)}
-                >
+                <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/claims/${c.id}`)}>
                   <td>
                     <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--accent)', fontWeight: 700 }}>
                       #{String(c.id).padStart(5, '0')}
@@ -258,10 +338,8 @@ export default function Dashboard() {
                   <td>
                     <span style={{
                       padding: '0.18rem 0.55rem',
-                      background: 'var(--surface-2)',
-                      border: '1px solid var(--border)',
-                      borderRadius: '99px',
-                      fontSize: '0.72rem', color: 'var(--text-2)', fontWeight: 500,
+                      background: 'var(--surface-2)', border: '1px solid var(--border)',
+                      borderRadius: '99px', fontSize: '0.72rem', color: 'var(--text-2)', fontWeight: 500,
                     }}>
                       {CLAIM_TYPE_LABELS[c.claim_type] || c.claim_type}
                     </span>
@@ -270,9 +348,9 @@ export default function Dashboard() {
                     <span style={{ fontWeight: 700, color: 'var(--text-1)' }}>${Number(c.amount).toLocaleString()}</span>
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-3)', marginLeft: '0.2rem' }}>AUD</span>
                   </td>
-                  <td style={{ color: 'var(--text-2)', fontSize: '0.82rem' }}>
-                    {new Date(c.incident_date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </td>
+                  <td><TriageBadge triage={c.triage} /></td>
+                  <td><PriorityBadge priority={c.priority} /></td>
+                  <td><SlaChip slaDue={c.sla_due} status={c.status} /></td>
                   <td><StatusBadge status={c.status} /></td>
                   <td>
                     <button
@@ -280,12 +358,9 @@ export default function Dashboard() {
                       style={{
                         display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
                         padding: '0.3rem 0.65rem',
-                        background: 'var(--surface-2)',
-                        border: '1.5px solid var(--border)',
-                        borderRadius: '6px',
-                        fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-2)',
-                        cursor: 'pointer', transition: 'all 0.15s ease',
-                        fontFamily: 'inherit',
+                        background: 'var(--surface-2)', border: '1.5px solid var(--border)',
+                        borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-2)',
+                        cursor: 'pointer', transition: 'all 0.15s ease', fontFamily: 'inherit',
                       }}
                       onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)' }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-2)' }}

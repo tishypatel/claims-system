@@ -6,6 +6,8 @@ import Dashboard from './pages/Dashboard'
 import NewClaim from './pages/NewClaim'
 import ClaimDetail from './pages/ClaimDetail'
 import Layout from './components/Layout'
+import { ToastProvider } from './components/Toast'
+import ChatWidget from './components/ChatWidget'
 
 export const ThemeContext = createContext(null)
 export function useTheme() { return useContext(ThemeContext) }
@@ -29,6 +31,7 @@ export default function App() {
 
   return (
     <ThemeContext.Provider value={{ dark, toggle: () => setDark(d => !d) }}>
+      <ToastProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
@@ -39,7 +42,9 @@ export default function App() {
             <Route path="claims/:id" element={<ClaimDetail />} />
           </Route>
         </Routes>
+        <ChatWidget />
       </BrowserRouter>
+      </ToastProvider>
     </ThemeContext.Provider>
   )
 }
