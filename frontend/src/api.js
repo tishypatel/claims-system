@@ -1,9 +1,11 @@
 import axios from 'axios'
 
-// Base URL is always empty — API is served on the same origin via /api/*
-// Vercel routes /api/:path* → serverless function → Express
+// With Vercel experimentalServices, the backend is always at /_/backend.
+// Hardcoded so the Vite build never depends on an env var being injected.
 const api = axios.create({
-  baseURL: '',
+  baseURL: typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    ? '/_/backend'
+    : '',
 })
 
 export default api

@@ -12,7 +12,6 @@
     }
   },
   "rewrites": [
-    { "source": "/api/:path*",       "destination": "/api/index" },
-    { "source": "/((?!_/)(?!api/).*)", "destination": "/index.html" }
+    { "source": "/((?!_/).*)", "destination": "/index.html" }
   ]
 }
