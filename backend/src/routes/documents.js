@@ -8,7 +8,8 @@ import { fileURLToPath } from 'url'
 import { dirname } from 'path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const uploadsDir = path.join(__dirname, '../../../uploads')
+// Use /tmp on Vercel (read-only fs), local uploads/ otherwise
+const uploadsDir = process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, '../../../uploads')
 if (!existsSync(uploadsDir)) mkdirSync(uploadsDir, { recursive: true })
 
 const storage = multer.diskStorage({

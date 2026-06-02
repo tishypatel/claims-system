@@ -9,7 +9,8 @@ import { fileURLToPath } from 'url'
 import { dirname } from 'path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const ocrDir = path.join(__dirname, '../../../uploads/ocr-tmp')
+// Use /tmp on Vercel (read-only fs), local uploads/ otherwise
+const ocrDir = process.env.VERCEL ? '/tmp/uploads/ocr-tmp' : path.join(__dirname, '../../../uploads/ocr-tmp')
 if (!existsSync(ocrDir)) mkdirSync(ocrDir, { recursive: true })
 
 const tmpUpload = multer({
