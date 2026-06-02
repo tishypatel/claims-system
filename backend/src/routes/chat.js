@@ -18,7 +18,7 @@ router.post('/chat', async (req, res) => {
   try {
     const reply = await chat(
       [{ role: 'system', content: systemPrompt }, ...recent],
-      { max_tokens: 512, temperature: 0.3, model: getChatModel() },
+      { max_tokens: 200, temperature: 0.3, model: getChatModel() },
     )
     res.json({ reply })
   } catch (err) {
@@ -36,20 +36,15 @@ function buildSystemPrompt(role, email, claim_id, messages) {
 
   if (isGuest) {
     const claimContext = extractGuestClaimContext(messages)
-    return `You are ClaimsHub Assistant, a friendly AI helper for an insurance claims management system.
+    return `You are ClaimsHub Assistant, an AI helper for an insurance claims system.
 
-You are in GUEST MODE. You can:
-- Help users check the status of an existing claim when they provide a reference number
-- Answer general questions about the claims process and required documents
-- Guide users to log in if they want to file a claim or see their full history
+RULES:
+- Answer in 1-3 sentences max. Stop when the question is answered.
+- Only address exactly what was asked. Do not add extra tips or related info.
+- If asked a vague question, give one short sentence and ask what specifically they want.
+- If a user wants to file a claim, tell them to log in first (one sentence).
 
-You CANNOT access personal account details without a reference number, file claims for users, or make claim decisions.
-
-If a user asks to file a new claim, tell them to log in first.
-
-${claimContext}
-
-Keep responses concise (2-4 sentences where possible). Be empathetic — people filing claims are often stressed.`
+${claimContext}`
   }
 
   if (role === 'claimant') {
@@ -71,13 +66,11 @@ CLAIMANT: ${email || 'Unknown'}
 THEIR CLAIMS:
 ${claimList}
 
-Help them understand:
-- Status of their specific claims
-- What each status means (pending → under review → approved/rejected → closed)
-- What to do next for their claim type
-- Documents they may need to provide
-
-Be empathetic, clear, and concise. Never share information about other claimants.`
+RULES:
+- Answer in 1-3 sentences max. Stop when the question is answered.
+- Only address exactly what was asked. Do not volunteer related information.
+- If asked a vague question, give one short answer and ask what specifically they want.
+- Never share information about other claimants.`
   }
 
   if (role === 'adjudicator' || role === 'manager') {
@@ -116,11 +109,14 @@ PORTFOLIO SNAPSHOT:
 - Pending: ${pending} | Under review: ${underReview} | Approved: ${approved} | Rejected: ${rejected}
 - SLA overdue: ${overdue} | High fraud risk: ${highRisk}
 ${specificClaimCtx}
-You can help with claim assessment, fraud pattern analysis, SLA prioritisation, adjudication guidance, and process questions.
-Be professional and analytical. Provide actionable, concise insights.`
+RULES:
+- Answer in 1-3 sentences max. Stop when the question is answered.
+- Only address exactly what was asked. Do not volunteer related information.
+- If asked a broad question (e.g. "portfolio summary"), give a 2-sentence overview and stop.
+- Use the data above only when it's directly relevant to what was asked.`
   }
 
-  return 'You are ClaimsHub Assistant. Help the user with their insurance claims questions.'
+  return 'You are ClaimsHub Assistant. Answer in 1-3 sentences max. Only address exactly what was asked.'
 }
 
 function extractGuestClaimContext(messages) {
