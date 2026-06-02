@@ -12,9 +12,7 @@
     }
   },
   "rewrites": [
-    {
-      "source": "/((?!_/).*)",
-      "destination": "/index.html"
-    }
+    { "source": "/api/:path*",       "destination": "/api/index" },
+    { "source": "/((?!_/)(?!api/).*)", "destination": "/index.html" }
   ]
 }
