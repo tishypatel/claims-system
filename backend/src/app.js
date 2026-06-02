@@ -11,6 +11,15 @@ import chatRouter      from './routes/chat.js'
 
 const app = express()
 
+// Strip the Vercel experimentalServices route prefix if present
+// e.g. /_/backend/api/claims → /api/claims
+app.use((req, _res, next) => {
+  if (req.url.startsWith('/_/backend')) {
+    req.url = req.url.slice('/_/backend'.length) || '/'
+  }
+  next()
+})
+
 app.use(cors({ origin: process.env.ALLOWED_ORIGIN ?? '*' }))
 app.use(express.json())
 

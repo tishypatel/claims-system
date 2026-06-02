@@ -10,5 +10,11 @@
       "entrypoint": "backend",
       "routePrefix": "/_/backend"
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/((?!_/).*)",
+      "destination": "/index.html"
+    }
+  ]
 }
