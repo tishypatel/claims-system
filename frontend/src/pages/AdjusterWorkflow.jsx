@@ -231,7 +231,6 @@ export default function AdjusterWorkflow() {
     setAiElapsed(0)
     setAiStep(0)
 
-    // Tick elapsed-time counter every second
     let secs = 0
     aiTimerRef.current = setInterval(() => { secs += 1; setAiElapsed(secs) }, 1000)
 
@@ -239,45 +238,30 @@ export default function AdjusterWorkflow() {
       await new Promise(r => setTimeout(r, 400))
       setAiStep(1)
 
-      // Fire-and-forget: backend starts AI jobs and returns immediately.
-      // This avoids Vercel's HTTP timeout entirely — the AI runs server-side
-      // in the background while we poll for the result.
-      await axios.post(`/api/claims/${id}/start-analysis`)
+      // Hold the connection open until the AI finishes (both calls run in parallel
+      // on the server). 5-minute axios timeout — no browser limit on fetch duration.
+      const { data: result } = await axios.post(
+        `/api/claims/${id}/start-analysis`,
+        {},
+        { timeout: 300000 },   // 5 minutes
+      )
 
-      // Poll claim every 3 seconds until ai_analysis_status is 'complete'/'error'
-      // or until 4 minutes have elapsed (80 polls × 3s)
-      let polls = 0
-      await new Promise((resolve, reject) => {
-        const poller = setInterval(async () => {
-          polls += 1
-          if (polls > 80) {
-            clearInterval(poller)
-            return reject(new Error('Analysis is taking unusually long. Check back in a moment — results may still arrive.'))
-          }
-          try {
-            const { data: latest } = await axios.get(`/api/claims/${id}`)
-            if (latest.ai_analysis_status === 'complete') {
-              clearInterval(poller)
-              resolve(latest)
-            } else if (latest.ai_analysis_status === 'error') {
-              clearInterval(poller)
-              reject(new Error(latest.ai_analysis_error || 'AI analysis encountered an error on the server.'))
-            }
-            // still 'running' — keep polling
-          } catch (pollErr) {
-            clearInterval(poller)
-            reject(pollErr)
-          }
-        }, 3000)
-      })
+      if (result.status === 'error') {
+        throw new Error(result.error || 'Server-side analysis error.')
+      }
 
       setAiStep(2)
+      // Cache-bust the reload so we always get fresh data
+      await axios.get(`/api/claims/${id}?_t=${Date.now()}`)
       await load(true)
       setAiStep(3)
       setTriageRan(true)
       toast('AI analysis complete!', 'success')
     } catch (err) {
-      toast(err.message || 'AI analysis failed. Please try again.', 'error')
+      const msg = err.code === 'ECONNABORTED'
+        ? 'The analysis is taking longer than expected. Please wait a moment and try again.'
+        : (err.message || 'AI analysis failed. Please try again.')
+      toast(msg, 'error')
       setAiStep(-1)
     } finally {
       clearInterval(aiTimerRef.current)

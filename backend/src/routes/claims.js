@@ -47,6 +47,9 @@ router.get('/', (req, res) => {
 router.get('/:id', (req, res) => {
   const claim = db.data.claims.find(c => c.id === Number(req.params.id))
   if (!claim) return res.status(404).json({ error: 'Claim not found' })
+  // Prevent browser caching so polling always gets fresh data
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+  res.setHeader('Pragma', 'no-cache')
   res.json(claim)
 })
 

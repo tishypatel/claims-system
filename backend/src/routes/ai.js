@@ -100,43 +100,42 @@ router.post('/claims/:id/risk-score', async (req, res) => {
   }
 })
 
-// ── Start analysis: fire-and-forget, client polls for results ─
-// Returns immediately so Vercel never times out. The AI calls run
-// in the background and write their results to db.json when done.
+// ── AI analysis: runs synchronously, returns when done ────────
+// Both fraud + triage run in parallel. The HTTP connection is held
+// open until both finish — this is correct for a persistent Express
+// server. The frontend uses a 5-minute axios timeout.
 router.post('/claims/:id/start-analysis', async (req, res) => {
   const claim = db.data.claims.find(c => c.id === Number(req.params.id))
   if (!claim) return res.status(404).json({ error: 'Claim not found' })
 
-  // Mark as in-progress and respond right away
   claim.ai_analysis_status = 'running'
   claim.ai_analysis_started = new Date().toISOString()
   delete claim.ai_analysis_error
   await db.write()
-  res.json({ status: 'running' })
 
-  // Run fraud + triage in parallel in the background
-  setImmediate(async () => {
-    try {
-      await Promise.all([
-        runFraudAnalysis(claim),
-        runTriage(claim),
-      ])
-      const c = db.data.claims.find(x => x.id === claim.id)
-      if (c) {
-        c.ai_analysis_status = 'complete'
-        c.ai_analysis_completed = new Date().toISOString()
-        await db.write()
-      }
-    } catch (err) {
-      console.error('[start-analysis] background error:', err.message)
-      const c = db.data.claims.find(x => x.id === claim.id)
-      if (c) {
-        c.ai_analysis_status = 'error'
-        c.ai_analysis_error = err.message
-        await db.write()
-      }
+  try {
+    // Parallel execution — halves total wait time
+    await Promise.all([
+      runFraudAnalysis(claim),
+      runTriage(claim),
+    ])
+    const c = db.data.claims.find(x => x.id === claim.id)
+    if (c) {
+      c.ai_analysis_status = 'complete'
+      c.ai_analysis_completed = new Date().toISOString()
+      await db.write()
     }
-  })
+    res.json({ status: 'complete' })
+  } catch (err) {
+    console.error('[start-analysis] error:', err.message)
+    const c = db.data.claims.find(x => x.id === claim.id)
+    if (c) {
+      c.ai_analysis_status = 'error'
+      c.ai_analysis_error = err.message
+      await db.write()
+    }
+    res.status(500).json({ status: 'error', error: err.message })
+  }
 })
 
 // ── AI decision suggestion with confidence + reasoning chain ──
