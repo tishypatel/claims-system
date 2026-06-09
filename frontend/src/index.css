@@ -350,12 +350,21 @@ textarea.input-field { resize: vertical; }
 }
 .mobile-overlay.open { display: block; }
 
+/* ── Two-column workflow grid ─────────────────────────────────── */
+
+.two-col-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
 /* ── Breakpoints ──────────────────────────────────────────────── */
 
 /* Tablet  ≤ 900px */
 @media (max-width: 900px) {
-  .stats-grid { grid-template-columns: repeat(3, 1fr); }
-  .detail-body { grid-template-columns: 1fr; }
+  .stats-grid    { grid-template-columns: repeat(3, 1fr); }
+  .detail-body   { grid-template-columns: 1fr; }
+  .two-col-grid  { grid-template-columns: 1fr; }
 }
 
 /* Mobile ≤ 640px */
@@ -367,6 +376,7 @@ textarea.input-field { resize: vertical; }
   .stats-grid         { grid-template-columns: repeat(2, 1fr); }
   .form-grid-2        { grid-template-columns: 1fr; }
   .info-grid-2        { grid-template-columns: 1fr; }
+  .two-col-grid       { grid-template-columns: 1fr; }
 
   .dash-toolbar       { flex-direction: column; align-items: stretch; }
   .dash-toolbar-right { justify-content: space-between; }

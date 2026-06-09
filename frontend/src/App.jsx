@@ -5,6 +5,7 @@ import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import NewClaim from './pages/NewClaim'
 import ClaimDetail from './pages/ClaimDetail'
+import AdjusterWorkflow from './pages/AdjusterWorkflow'
 import Layout from './components/Layout'
 import { ToastProvider } from './components/Toast'
 import ChatWidget from './components/ChatWidget'
@@ -40,6 +41,7 @@ export default function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="claims/new" element={<NewClaim />} />
             <Route path="claims/:id" element={<ClaimDetail />} />
+            <Route path="claims/:id/workflow" element={<AdjusterWorkflow />} />
           </Route>
         </Routes>
         <ChatWidget />

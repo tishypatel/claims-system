@@ -105,6 +105,11 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false)
   const navigate = useNavigate()
   const user = JSON.parse(localStorage.getItem('claims_user') || '{}')
+  const isAdjudicator = user.role === 'adjudicator' || user.role === 'manager'
+
+  function claimPath(claimId) {
+    return isAdjudicator ? `/claims/${claimId}/workflow` : `/claims/${claimId}`
+  }
 
   async function fetchClaims(silent = false) {
     if (!silent) setLoading(true)
@@ -313,7 +318,7 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {filtered.map(c => (
-                <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/claims/${c.id}`)}>
+                <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => navigate(claimPath(c.id))}>
                   <td>
                     <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--accent)', fontWeight: 700 }}>
                       #{String(c.id).padStart(5, '0')}
@@ -354,7 +359,7 @@ export default function Dashboard() {
                   <td><StatusBadge status={c.status} /></td>
                   <td>
                     <button
-                      onClick={e => { e.stopPropagation(); navigate(`/claims/${c.id}`) }}
+                      onClick={e => { e.stopPropagation(); navigate(claimPath(c.id)) }}
                       style={{
                         display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
                         padding: '0.3rem 0.65rem',
