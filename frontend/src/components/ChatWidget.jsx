@@ -28,7 +28,7 @@ const QUICK_ACTIONS = {
 
 export default function ChatWidget() {
   const location = useLocation()
-  const claimMatch = location.pathname.match(/^\/claims\/(\d+)$/)
+  const claimMatch = location.pathname.match(/^\/claims\/(\d+)/)
   const detectedClaimId = claimMatch ? parseInt(claimMatch[1], 10) : null
 
   const [open, setOpen] = useState(false)

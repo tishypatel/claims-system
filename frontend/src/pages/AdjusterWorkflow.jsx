@@ -129,6 +129,10 @@ export default function AdjusterWorkflow() {
   const [docLabel,     setDocLabel]     = useState('')
   const [docUploading, setDocUploading] = useState(false)
 
+  // Stage 2 — doc request note
+  const [docReqText,   setDocReqText]   = useState('')
+  const [sendingDocReq, setSendingDocReq] = useState(false)
+
   // Stage 3 — AI triage
   const [aiStep,    setAiStep]    = useState(-1)   // -1 not started, 0-3 step index
   const [aiRunning, setAiRunning] = useState(false)
@@ -181,6 +185,8 @@ export default function AdjusterWorkflow() {
   function saveWF(stage, comp) {
     localStorage.setItem(`wf_stage_${id}`, String(stage))
     localStorage.setItem(`wf_completed_${id}`, JSON.stringify([...comp]))
+    // Persist to backend (non-blocking)
+    axios.patch(`/api/claims/${id}/workflow-stage`, { stage, updated_by: user.name }).catch(() => {})
   }
 
   function advanceStage() {
@@ -255,6 +261,23 @@ export default function AdjusterWorkflow() {
   }
 
   /* ── Notes & Documents ─────────────────────────────────────── */
+
+  async function sendDocRequest(e) {
+    e.preventDefault()
+    if (!docReqText.trim()) return
+    setSendingDocReq(true)
+    try {
+      await axios.post(`/api/claims/${id}/notes`, {
+        author: user.name || 'Adjudicator',
+        content: docReqText,
+        is_doc_request: true,
+      })
+      setDocReqText('')
+      load(true)
+      toast('Document request sent to claimant.', 'success')
+    } catch { toast('Failed to send request.', 'error') }
+    finally { setSendingDocReq(false) }
+  }
 
   async function addNote(e) {
     e.preventDefault()
@@ -526,6 +549,36 @@ export default function AdjusterWorkflow() {
                 <span style={{ fontSize: '0.82rem', fontWeight: 700, color }}>{value}</span>
               </div>
             ))}
+          </StageCard>
+
+          <StageCard title="Request Missing Documents" icon={MessageSquare} accent="var(--warning)">
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-3)', marginBottom: '0.625rem', lineHeight: 1.5 }}>
+              Send a document request to the claimant. They'll see it highlighted in their portal.
+            </p>
+            {notes.filter(n => n.is_doc_request).length > 0 && (
+              <div style={{ marginBottom: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                {notes.filter(n => n.is_doc_request).map(n => (
+                  <div key={n.id} style={{ padding: '0.5rem 0.75rem', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--r-sm)', fontSize: '0.75rem', color: 'var(--warning-text)' }}>
+                    <span style={{ fontWeight: 600 }}>{n.author}:</span> {n.content}
+                  </div>
+                ))}
+              </div>
+            )}
+            <form onSubmit={sendDocRequest} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <textarea
+                value={docReqText}
+                onChange={e => setDocReqText(e.target.value)}
+                placeholder="e.g. Please upload a copy of the police report dated after the incident…"
+                className="input-field"
+                style={{ minHeight: '70px', resize: 'none', fontSize: '0.8rem', lineHeight: 1.5 }}
+              />
+              <button type="submit" disabled={sendingDocReq || !docReqText.trim()}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.5rem', background: 'var(--warning-bg)', border: '1.5px solid var(--warning-border)', borderRadius: 'var(--r-sm)', color: 'var(--warning-text)', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', opacity: !docReqText.trim() ? 0.4 : 1 }}
+              >
+                {sendingDocReq ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Send size={12} />}
+                Send Request to Claimant
+              </button>
+            </form>
           </StageCard>
         </div>
       </div>

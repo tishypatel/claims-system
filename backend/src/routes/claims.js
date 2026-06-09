@@ -165,19 +165,42 @@ router.get('/:id/notes', (req, res) => {
 })
 
 router.post('/:id/notes', async (req, res) => {
-  const { author, content } = req.body
+  const { author, content, is_doc_request } = req.body
   if (!author || !content) return res.status(400).json({ error: 'Author and content required.' })
 
   const note = {
     id: db.data.nextNoteId++,
     claim_id: Number(req.params.id),
     author, content,
+    is_doc_request: !!is_doc_request,
     created_at: new Date().toISOString(),
   }
   db.data.notes.push(note)
-  writeAudit(Number(req.params.id), 'note_added', author, content.length > 80 ? content.slice(0, 80) + '…' : content)
+  writeAudit(
+    Number(req.params.id), 'note_added', author,
+    (is_doc_request ? '[DOC REQUEST] ' : '') + (content.length > 80 ? content.slice(0, 80) + '…' : content),
+  )
   await db.write()
   res.status(201).json(note)
+})
+
+// ── Workflow stage (adjudicator progress) ──────────────────────
+router.patch('/:id/workflow-stage', async (req, res) => {
+  const { stage, updated_by } = req.body
+  const claim = db.data.claims.find(c => c.id === Number(req.params.id))
+  if (!claim) return res.status(404).json({ error: 'Claim not found' })
+
+  claim.workflow_stage = Number(stage)
+  claim.updated_at = new Date().toISOString()
+
+  // Auto-move to under_review when adjudicator starts reviewing
+  if (Number(stage) >= 2 && claim.status === 'pending') {
+    claim.status = 'under_review'
+    writeAudit(claim.id, 'status_changed', updated_by || 'System', 'Status changed from pending → under_review')
+  }
+
+  await db.write()
+  res.json(claim)
 })
 
 // ── Audit trail ────────────────────────────────────────────────
