@@ -46,13 +46,6 @@ function ClaimCard({ claim, onClick }) {
       onMouseEnter={e => { e.currentTarget.style.boxShadow = 'var(--shadow-md)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; e.currentTarget.style.transform = 'none' }}
     >
-      {/* Doc request badge */}
-      {hasDocReq && (
-        <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.2rem 0.5rem', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: '99px', fontSize: '0.65rem', fontWeight: 700, color: 'var(--warning-text)' }}>
-          <AlertTriangle size={9} /> Action needed
-        </div>
-      )}
-
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.875rem', gap: '0.5rem' }}>
         <div>
@@ -67,6 +60,11 @@ function ClaimCard({ claim, onClick }) {
           </p>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          {hasDocReq && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.2rem 0.5rem', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: '99px', fontSize: '0.65rem', fontWeight: 700, color: 'var(--warning-text)', marginBottom: '0.3rem' }}>
+              <AlertTriangle size={9} /> Action needed
+            </div>
+          )}
           <p style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-0.02em' }}>
             ${Number(claim.amount).toLocaleString()}
           </p>
