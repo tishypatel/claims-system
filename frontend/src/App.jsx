@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { createContext, useContext, useState, useEffect } from 'react'
 import Login from './pages/Login'
 import Landing from './pages/Landing'
@@ -42,7 +42,7 @@ export default function App() {
   return (
     <ThemeContext.Provider value={{ dark, toggle: () => setDark(d => !d) }}>
       <ToastProvider>
-      <BrowserRouter>
+      <HashRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
@@ -59,7 +59,7 @@ export default function App() {
           </Route>
         </Routes>
         <ChatWidget />
-      </BrowserRouter>
+      </HashRouter>
       </ToastProvider>
     </ThemeContext.Provider>
   )

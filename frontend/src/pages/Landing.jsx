@@ -199,14 +199,17 @@ export default function Landing() {
         {/* Desktop nav links */}
         <nav className="landing-nav-links">
           {['Features', 'How it works', 'Pricing'].map(item => (
-            <a key={item} href={`#${item.toLowerCase().replace(/ /g, '-')}`} style={{
-              padding: '0.35rem 0.75rem', borderRadius: 6,
-              fontSize: '0.85rem', fontWeight: 500,
-              color: 'var(--text-2)', textDecoration: 'none',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-1)'; e.currentTarget.style.background = 'var(--surface-2)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-2)'; e.currentTarget.style.background = 'transparent' }}
+            <a key={item}
+              href={`#${item.toLowerCase().replace(/ /g, '-')}`}
+              onClick={e => { e.preventDefault(); document.getElementById(item.toLowerCase().replace(/ /g, '-'))?.scrollIntoView({ behavior: 'smooth' }) }}
+              style={{
+                padding: '0.35rem 0.75rem', borderRadius: 6,
+                fontSize: '0.85rem', fontWeight: 500,
+                color: 'var(--text-2)', textDecoration: 'none',
+                transition: 'all 0.15s ease', cursor: 'pointer',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-1)'; e.currentTarget.style.background = 'var(--surface-2)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-2)'; e.currentTarget.style.background = 'transparent' }}
             >
               {item}
             </a>
@@ -273,13 +276,14 @@ export default function Landing() {
           display: 'flex', flexDirection: 'column', gap: '0.25rem',
         }}>
           {['Features', 'How it works', 'Pricing'].map(item => (
-            <a key={item} href={`#${item.toLowerCase().replace(/ /g, '-')}`}
-              onClick={() => setMobileNav(false)}
+            <a key={item}
+              href={`#${item.toLowerCase().replace(/ /g, '-')}`}
+              onClick={e => { e.preventDefault(); setMobileNav(false); document.getElementById(item.toLowerCase().replace(/ /g, '-'))?.scrollIntoView({ behavior: 'smooth' }) }}
               style={{
                 padding: '0.7rem 0.875rem', borderRadius: 8,
                 fontSize: '0.95rem', fontWeight: 500,
                 color: 'var(--text-2)', textDecoration: 'none',
-                transition: 'all 0.15s',
+                transition: 'all 0.15s', cursor: 'pointer',
               }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -612,7 +616,7 @@ export default function Landing() {
           </div>
           <div style={{ display: 'flex', gap: '1.5rem' }}>
             {['Privacy', 'Terms', 'Security', 'Contact'].map(l => (
-              <a key={l} href="#" style={{ fontSize: '0.8rem', color: 'var(--text-3)', textDecoration: 'none', transition: 'color 0.15s' }}
+              <a key={l} href="#/" onClick={e => e.preventDefault()} style={{ fontSize: '0.8rem', color: 'var(--text-3)', textDecoration: 'none', transition: 'color 0.15s', cursor: 'default' }}
                 onMouseEnter={e => e.currentTarget.style.color = 'var(--text-1)'}
                 onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
               >{l}</a>
