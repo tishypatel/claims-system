@@ -219,7 +219,8 @@ export default function AdjusterWorkflow() {
   function canAdvance() {
     if (currentStage === 1) return true
     if (currentStage === 2) return true
-    if (currentStage === 3) return triageRan
+    // Use actual claim data — not triageRan — so navigating back still allows advance
+    if (currentStage === 3) return !!(claim?.triage || claim?.fraud_score) || triageRan
     if (currentStage === 4) return assessmentNote.trim().length > 0
     return false
   }
@@ -254,7 +255,7 @@ export default function AdjusterWorkflow() {
       // Cache-bust the reload so we always get fresh data
       await axios.get(`/api/claims/${id}?_t=${Date.now()}`)
       await load(true)
-      setAiStep(3)
+      setAiStep(4)   // 4 > 3 so all steps show green checkmarks
       setTriageRan(true)
       toast('AI analysis complete!', 'success')
     } catch (err) {
@@ -700,8 +701,8 @@ export default function AdjusterWorkflow() {
           )}
         </div>
 
-        {/* Results grid */}
-        {(triageRan || aiStep === 3) && (claim.triage || claim.fraud_score) && (
+        {/* Results grid — show whenever claim has analysis data (persists across navigation) */}
+        {(claim.triage || claim.fraud_score) && (
           <div className="two-col-grid">
             {/* Left: fraud + triage */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -797,7 +798,7 @@ export default function AdjusterWorkflow() {
           </div>
         )}
 
-        {!triageRan && aiStep < 0 && (
+        {!claim.triage && !claim.fraud_score && aiStep < 0 && (
           <div className="card" style={{ padding: '3.5rem', textAlign: 'center' }}>
             <Brain size={40} color="var(--text-3)" style={{ margin: '0 auto 0.875rem', display: 'block', opacity: 0.5 }} />
             <p style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: '0.35rem' }}>No AI analysis yet</p>
@@ -1250,7 +1251,7 @@ export default function AdjusterWorkflow() {
             <span style={{ fontSize: '0.72rem', color: 'var(--text-3)', fontWeight: 600 }}>
               Stage {currentStage} of 5
             </span>
-            {currentStage === 3 && !triageRan && (
+            {currentStage === 3 && !claim?.triage && !claim?.fraud_score && !triageRan && (
               <p style={{ fontSize: '0.68rem', color: 'var(--warning)', fontWeight: 600, marginTop: '0.1rem' }}>Run AI Analysis to continue</p>
             )}
             {currentStage === 4 && !assessmentNote.trim() && (
