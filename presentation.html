@@ -643,7 +643,7 @@
       AI Challenge 2026
     </div>
     <h1 class="hero-title">Claims<span>Hub</span></h1>
-    <p class="cover-sub">An AI-powered insurance claims management platform — built across 5 stages, from a blank canvas through live NVIDIA Gemma 4 AI integration.</p>
+    <p class="cover-sub">An AI-powered insurance claims management platform — built across 5 stages, from a blank canvas through live NVIDIA NIM AI, Supabase persistent storage, and intelligent chatbot.</p>
 
     <div class="cover-meta">
       <div class="meta-item"><div class="m-val">5</div><div class="m-key">Build Stages</div></div>
@@ -758,7 +758,7 @@
           <div class="f-num">STEP 05</div>
           <div style="font-size:22px;margin-bottom:8px;">🤖</div>
           <div class="f-name">AI Analysis</div>
-          <div class="f-desc">NVIDIA Gemma 4 triages claim, scores fraud risk, recommends decision</div>
+          <div class="f-desc">NVIDIA NIM AI triages claim, scores fraud risk, recommends decision</div>
         </div>
 
         <div class="flow-arrow">→</div>
@@ -817,7 +817,7 @@
         <div class="card-sm">
           <div style="font-size:24px;margin-bottom:10px;">🧠</div>
           <div class="t-name" style="font-size:14px;font-weight:700;color:var(--text-1);margin-bottom:4px;">Smart AI Triage</div>
-          <div class="t-desc" style="font-size:12px;color:var(--text-3);line-height:1.5;">Every new claim is automatically triaged — complexity, approval probability, recommended handler, and estimated processing days from NVIDIA Gemma 4.</div>
+          <div class="t-desc" style="font-size:12px;color:var(--text-3);line-height:1.5;">Every new claim is automatically triaged — complexity, approval probability, recommended handler, and estimated processing days from NVIDIA NIM AI.</div>
         </div>
         <div class="card-sm">
           <div style="font-size:24px;margin-bottom:10px;">🚨</div>
@@ -1245,8 +1245,8 @@
         </div>
         <div class="tool-badge">
           <div class="t-icon">🗄️</div>
-          <div class="t-name">JSON Database</div>
-          <div class="t-desc">Lightweight persistent store — zero configuration, demo-ready</div>
+          <div class="t-name">Supabase</div>
+          <div class="t-desc">PostgreSQL database + file storage — persistent across cold starts, permanent document URLs</div>
           <span class="tag tag-green" style="margin-top:4px;">Backend</span>
         </div>
         <div class="tool-badge">
@@ -1324,11 +1324,12 @@
           <div class="card-sm">
             <div style="font-size:13px;font-weight:700;color:var(--text-1);margin-bottom:6px;">Supporting Features</div>
             <ul style="font-size:12px;color:var(--text-2);line-height:1.8;padding-left:14px;">
-              <li>Document upload &amp; management</li>
+              <li>Document upload with inline preview (PDF, Word, images)</li>
+              <li>Supabase Storage — permanent public URLs</li>
+              <li>Chat history persistent 30 days (Supabase)</li>
               <li>Adjudicator notes per claim</li>
               <li>SLA deadlines &amp; priority flags</li>
               <li>Light / dark theme toggle</li>
-              <li>Animated marketing landing page</li>
             </ul>
           </div>
           <div class="card-sm" style="background:rgba(232,150,26,0.07);">
@@ -1388,10 +1389,10 @@
       <div class="grid-2" style="margin-top:24px;gap:20px;align-items:start;">
         <div>
           <div class="challenge-item">
-            <div class="ch-icon warn">🗄️</div>
+            <div class="ch-icon ok">🗄️</div>
             <div>
-              <div class="ch-title">Database — Development vs Enterprise</div>
-              <div class="ch-body">Built with a lightweight store for rapid prototyping and demo purposes. A production deployment would connect to an enterprise database (Oracle, PostgreSQL). The data schema is clean and self-contained — swapping the persistence layer is a targeted change that doesn't touch application logic.</div>
+              <div class="ch-title">Database — Already Production-Grade</div>
+              <div class="ch-body">Backed by Supabase PostgreSQL — a fully managed, persistent relational database. Files are stored in Supabase Storage with permanent public URLs. Chat history persists across sessions with a 30-day rolling window. No data loss on cold starts.</div>
             </div>
           </div>
           <div class="challenge-item">
@@ -1448,10 +1449,10 @@
         <div style="position:absolute;left:19px;top:0;bottom:0;width:2px;background:var(--border);"></div>
 
         <div style="display:flex;gap:20px;margin-bottom:22px;position:relative;">
-          <div style="width:40px;height:40px;border-radius:50%;background:var(--amber);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#1a1710;flex-shrink:0;z-index:1;">1</div>
-          <div class="card-sm" style="flex:1;">
-            <div style="font-size:13px;font-weight:700;color:var(--text-1);margin-bottom:4px;">Connect Enterprise Database <span class="tag tag-amber" style="margin-left:8px;">Week 1</span></div>
-            <p style="font-size:12.5px;color:var(--text-2);">Replace the development data store with an enterprise database (PostgreSQL or Oracle). The data schema is clean and self-contained — this is a targeted infrastructure swap, not a rewrite.</p>
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--amber);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#1a1710;flex-shrink:0;z-index:1;">✓</div>
+          <div class="card-sm" style="flex:1;background:rgba(34,197,94,0.07);border-color:rgba(34,197,94,0.3);">
+            <div style="font-size:13px;font-weight:700;color:var(--text-1);margin-bottom:4px;">Persistent Database &amp; Storage <span class="tag tag-green" style="margin-left:8px;">Done</span></div>
+            <p style="font-size:12.5px;color:var(--text-2);">Supabase PostgreSQL is already in production — persistent across cold starts, 5-table relational schema, file storage for documents with permanent public URLs. No migration needed.</p>
           </div>
         </div>
 
@@ -1493,7 +1494,7 @@
         Demo Ready
       </div>
       <h1 class="hero-title">Thank <span>You</span></h1>
-      <p class="cover-sub" style="margin-top:16px;">ClaimsHub demonstrates how AI can be woven into every layer of a modern enterprise application — from a blank canvas through live NVIDIA Gemma 4 AI, fraud detection, and intelligent chatbot.</p>
+      <p class="cover-sub" style="margin-top:16px;">ClaimsHub demonstrates how AI can be woven into every layer of a modern enterprise application — from a blank canvas through live NVIDIA NIM AI, Supabase persistent storage, fraud detection, and intelligent chatbot.</p>
 
       <div class="sep" style="margin:36px auto;max-width:400px;"></div>
 
