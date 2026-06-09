@@ -158,10 +158,11 @@ export default function AdjusterWorkflow() {
   async function load(silent = false) {
     if (!silent) setLoading(true)
     try {
+      const ts = Date.now()
       const [c, n, d] = await Promise.all([
-        axios.get(`/api/claims/${id}`),
-        axios.get(`/api/claims/${id}/notes`),
-        axios.get(`/api/claims/${id}/documents`),
+        axios.get(`/api/claims/${id}?_t=${ts}`),
+        axios.get(`/api/claims/${id}/notes?_t=${ts}`),
+        axios.get(`/api/claims/${id}/documents?_t=${ts}`),
       ])
       setClaim(c.data)
       setNotes(n.data)
@@ -252,10 +253,8 @@ export default function AdjusterWorkflow() {
       }
 
       setAiStep(2)
-      // Cache-bust the reload so we always get fresh data
-      await axios.get(`/api/claims/${id}?_t=${Date.now()}`)
-      await load(true)
-      setAiStep(4)   // 4 > 3 so all steps show green checkmarks
+      await load(true)   // load() always cache-busts — fetches fresh triage/fraud data
+      setAiStep(4)       // 4 > 3 so all steps show green checkmarks
       setTriageRan(true)
       toast('AI analysis complete!', 'success')
     } catch (err) {
