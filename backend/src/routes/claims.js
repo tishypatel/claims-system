@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { db } from '../db/database.js'
+import { supabase } from '../db/supabase.js'
 import { runTriage, runFraudAnalysis } from './ai.js'
 
 const router = Router()
@@ -21,197 +21,218 @@ function calcSlaDue(createdAt, claimType) {
   return d.toISOString()
 }
 
-function writeAudit(claimId, action, actor, detail) {
-  db.data.audit_logs.push({
-    id: db.data.nextAuditId++,
+export async function writeAudit(claimId, action, actor, detail) {
+  await supabase.from('audit_logs').insert({
     claim_id: claimId,
     action,
     actor: actor || 'System',
     detail,
-    created_at: new Date().toISOString(),
   })
 }
 
 // ── List claims (role-based filtering) ────────────────────────
-router.get('/', (req, res) => {
-  const { role, email } = req.query
-  let claims = [...db.data.claims]
-  if (role === 'claimant' && email) {
-    claims = claims.filter(c => c.claimant_email === email)
+router.get('/', async (req, res) => {
+  try {
+    const { role, email } = req.query
+    let query = supabase.from('claims').select('*').order('created_at', { ascending: false })
+    if (role === 'claimant' && email) query = query.eq('claimant_email', email)
+    const { data, error } = await query
+    if (error) throw error
+    res.json(data)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
   }
-  claims.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-  res.json(claims)
 })
 
 // ── Get single claim ───────────────────────────────────────────
-router.get('/:id', (req, res) => {
-  const claim = db.data.claims.find(c => c.id === Number(req.params.id))
-  if (!claim) return res.status(404).json({ error: 'Claim not found' })
-  // Prevent browser caching so polling always gets fresh data
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
-  res.setHeader('Pragma', 'no-cache')
-  res.json(claim)
+router.get('/:id', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('claims').select('*')
+      .eq('id', Number(req.params.id)).single()
+    if (error) return res.status(404).json({ error: 'Claim not found' })
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+    res.setHeader('Pragma', 'no-cache')
+    res.json(data)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
 })
 
 // ── Create claim ───────────────────────────────────────────────
 router.post('/', async (req, res) => {
-  const {
-    claimant_name, claimant_email, claimant_phone,
-    policy_number, claim_type, amount, incident_date,
-    incident_description, location,
-  } = req.body
+  try {
+    const {
+      claimant_name, claimant_email, claimant_phone,
+      policy_number, claim_type, amount, incident_date,
+      incident_description, location,
+    } = req.body
 
-  if (!claimant_name || !claimant_email || !policy_number || !claim_type || !amount || !incident_date || !incident_description || !location) {
-    return res.status(400).json({ error: 'All required fields must be provided.' })
+    if (!claimant_name || !claimant_email || !policy_number || !claim_type || !amount || !incident_date || !incident_description || !location) {
+      return res.status(400).json({ error: 'All required fields must be provided.' })
+    }
+
+    const now = new Date().toISOString()
+    const { data: claim, error } = await supabase.from('claims').insert({
+      claimant_name, claimant_email,
+      claimant_phone: claimant_phone || null,
+      policy_number, claim_type,
+      amount: Number(amount),
+      incident_date, incident_description, location,
+      status: 'pending',
+      fraud_flags: [],
+      priority: calcPriority(Number(amount)),
+      sla_due: calcSlaDue(now, claim_type),
+    }).select().single()
+    if (error) throw error
+
+    await writeAudit(claim.id, 'claim_created', claimant_name,
+      `Claim filed: ${claim_type} for $${Number(amount).toLocaleString()} AUD`)
+
+    res.status(201).json(claim)
+
+    // Background AI analysis — does not block the response
+    Promise.all([
+      runTriage(claim).catch(e => console.error('Auto-triage failed:', e.message)),
+      runFraudAnalysis(claim).catch(e => console.error('Auto-fraud failed:', e.message)),
+    ])
+  } catch (err) {
+    res.status(500).json({ error: err.message })
   }
-
-  const now = new Date().toISOString()
-  const claim = {
-    id: db.data.nextClaimId++,
-    claimant_name, claimant_email,
-    claimant_phone: claimant_phone || null,
-    policy_number, claim_type,
-    amount: Number(amount),
-    incident_date, incident_description, location,
-    status: 'pending',
-    decision_reason: null,
-    decided_by: null,
-    // Settlement fields
-    approved_amount: null,
-    excess: 0,
-    net_payout: null,
-    payment_status: null,
-    paid_at: null,
-    paid_by: null,
-    // Risk fields
-    fraud_score: null,
-    fraud_flags: [],
-    fraud_confidence: null,
-    fraud_summary: null,
-    // Meta
-    priority: calcPriority(Number(amount)),
-    sla_due: calcSlaDue(now, claim_type),
-    created_at: now,
-    updated_at: now,
-  }
-
-  db.data.claims.push(claim)
-  writeAudit(claim.id, 'claim_created', claimant_name, `Claim filed: ${claim_type} for $${Number(amount).toLocaleString()} AUD`)
-  await db.write()
-  res.status(201).json(claim)
-
-  // Background AI analysis — does not block the response
-  const snapshot = { ...claim }
-  Promise.all([
-    runTriage(snapshot).catch(e => console.error('Auto-triage failed:', e.message)),
-    runFraudAnalysis(snapshot).catch(e => console.error('Auto-fraud failed:', e.message)),
-  ])
 })
 
 // ── Update status ──────────────────────────────────────────────
 router.patch('/:id/status', async (req, res) => {
-  const allowed = ['pending', 'under_review', 'approved', 'rejected', 'closed']
-  const { status, reason, updated_by, approved_amount, excess } = req.body
+  try {
+    const allowed = ['pending', 'under_review', 'approved', 'rejected', 'closed']
+    const { status, reason, updated_by, approved_amount, excess } = req.body
+    if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status.' })
 
-  if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status.' })
+    const { data: existing, error: fetchErr } = await supabase
+      .from('claims').select('status, amount').eq('id', Number(req.params.id)).single()
+    if (fetchErr) return res.status(404).json({ error: 'Claim not found' })
 
-  const claim = db.data.claims.find(c => c.id === Number(req.params.id))
-  if (!claim) return res.status(404).json({ error: 'Claim not found' })
+    const updates = {
+      status,
+      decision_reason: reason || null,
+      decided_by: updated_by || null,
+    }
 
-  const prevStatus = claim.status
-  claim.status = status
-  claim.decision_reason = reason || null
-  claim.decided_by = updated_by || null
-  claim.updated_at = new Date().toISOString()
+    if (status === 'approved') {
+      const appAmt = approved_amount != null ? Number(approved_amount) : existing.amount
+      const exc    = excess != null ? Number(excess) : 0
+      updates.approved_amount = appAmt
+      updates.excess          = exc
+      updates.net_payout      = Math.max(0, appAmt - exc)
+      updates.payment_status  = 'pending_payment'
+    }
 
-  // Settlement calculation on approval
-  if (status === 'approved') {
-    const appAmt = approved_amount != null ? Number(approved_amount) : claim.amount
-    const exc    = excess != null ? Number(excess) : 0
-    claim.approved_amount = appAmt
-    claim.excess          = exc
-    claim.net_payout      = Math.max(0, appAmt - exc)
-    claim.payment_status  = 'pending_payment'
+    const { data: claim, error } = await supabase
+      .from('claims').update(updates)
+      .eq('id', Number(req.params.id)).select().single()
+    if (error) throw error
+
+    await writeAudit(claim.id, 'status_changed', updated_by || 'System',
+      `Status changed from ${existing.status} → ${status}${reason ? ': ' + reason : ''}`)
+    res.json(claim)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
   }
-
-  writeAudit(
-    claim.id, 'status_changed', updated_by || 'System',
-    `Status changed from ${prevStatus} → ${status}${reason ? ': ' + reason : ''}`,
-  )
-  await db.write()
-  res.json(claim)
 })
 
 // ── Mark as paid ───────────────────────────────────────────────
 router.patch('/:id/payment', async (req, res) => {
-  const { paid_by } = req.body
-  const claim = db.data.claims.find(c => c.id === Number(req.params.id))
-  if (!claim) return res.status(404).json({ error: 'Claim not found' })
-  if (claim.status !== 'approved') return res.status(400).json({ error: 'Claim must be approved before marking as paid.' })
+  try {
+    const { paid_by } = req.body
+    const { data: existing, error: fetchErr } = await supabase
+      .from('claims').select('status, net_payout').eq('id', Number(req.params.id)).single()
+    if (fetchErr) return res.status(404).json({ error: 'Claim not found' })
+    if (existing.status !== 'approved') {
+      return res.status(400).json({ error: 'Claim must be approved before marking as paid.' })
+    }
 
-  claim.payment_status = 'paid'
-  claim.paid_at        = new Date().toISOString()
-  claim.paid_by        = paid_by || null
-  claim.updated_at     = new Date().toISOString()
+    const { data: claim, error } = await supabase.from('claims')
+      .update({ payment_status: 'paid', paid_at: new Date().toISOString(), paid_by: paid_by || null })
+      .eq('id', Number(req.params.id)).select().single()
+    if (error) throw error
 
-  writeAudit(claim.id, 'payment_made', paid_by || 'System', `Settlement paid: $${claim.net_payout?.toLocaleString()} AUD`)
-  await db.write()
-  res.json(claim)
+    await writeAudit(claim.id, 'payment_made', paid_by || 'System',
+      `Settlement paid: $${Number(existing.net_payout || 0).toLocaleString()} AUD`)
+    res.json(claim)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
 })
 
 // ── Notes ──────────────────────────────────────────────────────
-router.get('/:id/notes', (req, res) => {
-  const notes = db.data.notes
-    .filter(n => n.claim_id === Number(req.params.id))
-    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-  res.json(notes)
+router.get('/:id/notes', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('notes')
+      .select('*').eq('claim_id', Number(req.params.id))
+      .order('created_at', { ascending: true })
+    if (error) throw error
+    res.json(data)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
 })
 
 router.post('/:id/notes', async (req, res) => {
-  const { author, content, is_doc_request } = req.body
-  if (!author || !content) return res.status(400).json({ error: 'Author and content required.' })
+  try {
+    const { author, content, is_doc_request, author_role } = req.body
+    if (!author || !content) return res.status(400).json({ error: 'Author and content required.' })
 
-  const note = {
-    id: db.data.nextNoteId++,
-    claim_id: Number(req.params.id),
-    author, content,
-    is_doc_request: !!is_doc_request,
-    created_at: new Date().toISOString(),
+    const { data: note, error } = await supabase.from('notes').insert({
+      claim_id: Number(req.params.id),
+      author, content,
+      author_role: author_role || 'adjudicator',
+      is_doc_request: !!is_doc_request,
+    }).select().single()
+    if (error) throw error
+
+    await writeAudit(Number(req.params.id), 'note_added', author,
+      (is_doc_request ? '[DOC REQUEST] ' : '') + (content.length > 80 ? content.slice(0, 80) + '…' : content))
+    res.status(201).json(note)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
   }
-  db.data.notes.push(note)
-  writeAudit(
-    Number(req.params.id), 'note_added', author,
-    (is_doc_request ? '[DOC REQUEST] ' : '') + (content.length > 80 ? content.slice(0, 80) + '…' : content),
-  )
-  await db.write()
-  res.status(201).json(note)
 })
 
-// ── Workflow stage (adjudicator progress) ──────────────────────
+// ── Workflow stage ─────────────────────────────────────────────
 router.patch('/:id/workflow-stage', async (req, res) => {
-  const { stage, updated_by } = req.body
-  const claim = db.data.claims.find(c => c.id === Number(req.params.id))
-  if (!claim) return res.status(404).json({ error: 'Claim not found' })
+  try {
+    const { stage, updated_by } = req.body
+    const updates = { workflow_stage: Number(stage) }
 
-  claim.workflow_stage = Number(stage)
-  claim.updated_at = new Date().toISOString()
+    // Auto-move to under_review when adjudicator starts stage 2+
+    const { data: existing } = await supabase
+      .from('claims').select('status').eq('id', Number(req.params.id)).single()
+    if (Number(stage) >= 2 && existing?.status === 'pending') {
+      updates.status = 'under_review'
+      await writeAudit(Number(req.params.id), 'status_changed', updated_by || 'System',
+        'Status changed from pending → under_review')
+    }
 
-  // Auto-move to under_review when adjudicator starts reviewing
-  if (Number(stage) >= 2 && claim.status === 'pending') {
-    claim.status = 'under_review'
-    writeAudit(claim.id, 'status_changed', updated_by || 'System', 'Status changed from pending → under_review')
+    const { data, error } = await supabase.from('claims')
+      .update(updates).eq('id', Number(req.params.id)).select().single()
+    if (error) throw error
+    res.json(data)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
   }
-
-  await db.write()
-  res.json(claim)
 })
 
 // ── Audit trail ────────────────────────────────────────────────
-router.get('/:id/audit', (req, res) => {
-  const logs = db.data.audit_logs
-    .filter(l => l.claim_id === Number(req.params.id))
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-  res.json(logs)
+router.get('/:id/audit', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('audit_logs')
+      .select('*').eq('claim_id', Number(req.params.id))
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    res.json(data)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
 })
 
 export default router

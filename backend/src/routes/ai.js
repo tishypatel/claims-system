@@ -1,20 +1,16 @@
 import { Router } from 'express'
-import { db } from '../db/database.js'
+import { supabase } from '../db/supabase.js'
 import { getNvidiaClient, getModel, getVisionModel, chat, parseJSON } from '../services/nvidia-client.js'
 import multer from 'multer'
-import { readFileSync, existsSync, mkdirSync } from 'fs'
-import { unlink } from 'fs/promises'
-import path from 'path'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-// Use /tmp on Vercel (read-only fs), local uploads/ otherwise
-const ocrDir = process.env.VERCEL ? '/tmp/uploads/ocr-tmp' : path.join(__dirname, '../../../uploads/ocr-tmp')
-if (!existsSync(ocrDir)) mkdirSync(ocrDir, { recursive: true })
+const router = Router()
 
+// OCR uses temp memory storage (file is not persisted)
 const tmpUpload = multer({
-  dest: ocrDir,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_, file, cb) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
@@ -22,15 +18,12 @@ const tmpUpload = multer({
   },
 })
 
-const router = Router()
-
 // ── OCR: extract claim fields from uploaded image ─────────────
 router.post('/ocr', tmpUpload.single('document'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file provided.' })
   try {
-    const client    = getNvidiaClient()
-    const fileBuffer = readFileSync(req.file.path)
-    const base64    = fileBuffer.toString('base64')
+    const client   = getNvidiaClient()
+    const base64   = req.file.buffer.toString('base64')
     const mediaType = req.file.mimetype
 
     const completion = await client.chat.completions.create({
@@ -69,88 +62,76 @@ Return ONLY the JSON. No markdown, no explanation.` },
   } catch (err) {
     console.error('OCR error:', err.message)
     res.status(500).json({ error: err.message.includes('NVIDIA_API_KEY') ? 'AI service not configured.' : 'Failed to extract document data.' })
-  } finally {
-    try { await unlink(req.file.path) } catch {}
   }
 })
 
-// ── Triage: full ML-style claim assessment ────────────────────
+// ── Triage endpoint ───────────────────────────────────────────
 router.post('/claims/:id/triage', async (req, res) => {
-  const claim = db.data.claims.find(c => c.id === Number(req.params.id))
-  if (!claim) return res.status(404).json({ error: 'Claim not found' })
   try {
+    const { data: claim } = await supabase.from('claims').select('*').eq('id', Number(req.params.id)).single()
+    if (!claim) return res.status(404).json({ error: 'Claim not found' })
     const result = await runTriage(claim)
     res.json(result)
   } catch (err) {
     console.error('Triage error:', err.message)
-    res.status(500).json({ error: err.message.includes('NVIDIA_API_KEY') ? 'AI service not configured.' : 'Triage failed.' })
+    res.status(500).json({ error: 'Triage failed.' })
   }
 })
 
-// ── Risk scoring: fraud analysis ──────────────────────────────
+// ── Risk scoring endpoint ─────────────────────────────────────
 router.post('/claims/:id/risk-score', async (req, res) => {
-  const claim = db.data.claims.find(c => c.id === Number(req.params.id))
-  if (!claim) return res.status(404).json({ error: 'Claim not found' })
   try {
+    const { data: claim } = await supabase.from('claims').select('*').eq('id', Number(req.params.id)).single()
+    if (!claim) return res.status(404).json({ error: 'Claim not found' })
     const result = await runFraudAnalysis(claim)
     res.json(result)
   } catch (err) {
     console.error('Risk error:', err.message)
-    res.status(500).json({ error: err.message.includes('NVIDIA_API_KEY') ? 'AI service not configured.' : 'Failed to assess risk.' })
+    res.status(500).json({ error: 'Failed to assess risk.' })
   }
 })
 
-// ── AI analysis: runs synchronously, returns when done ────────
-// Both fraud + triage run in parallel. The HTTP connection is held
-// open until both finish — this is correct for a persistent Express
-// server. The frontend uses a 5-minute axios timeout.
+// ── Start analysis: runs fraud + triage in parallel, holds connection ──
 router.post('/claims/:id/start-analysis', async (req, res) => {
-  const claim = db.data.claims.find(c => c.id === Number(req.params.id))
+  const { data: claim } = await supabase.from('claims').select('*').eq('id', Number(req.params.id)).single()
   if (!claim) return res.status(404).json({ error: 'Claim not found' })
 
-  claim.ai_analysis_status = 'running'
-  claim.ai_analysis_started = new Date().toISOString()
-  delete claim.ai_analysis_error
-  await db.write()
+  await supabase.from('claims').update({
+    ai_analysis_status: 'running',
+    ai_analysis_started: new Date().toISOString(),
+    ai_analysis_error: null,
+  }).eq('id', claim.id)
 
   try {
-    // Parallel execution — halves total wait time
-    await Promise.all([
-      runFraudAnalysis(claim),
-      runTriage(claim),
-    ])
-    const c = db.data.claims.find(x => x.id === claim.id)
-    if (c) {
-      c.ai_analysis_status = 'complete'
-      c.ai_analysis_completed = new Date().toISOString()
-      await db.write()
-    }
+    await Promise.all([runFraudAnalysis(claim), runTriage(claim)])
+    await supabase.from('claims').update({
+      ai_analysis_status: 'complete',
+      ai_analysis_completed: new Date().toISOString(),
+    }).eq('id', claim.id)
     res.json({ status: 'complete' })
   } catch (err) {
     console.error('[start-analysis] error:', err.message)
-    const c = db.data.claims.find(x => x.id === claim.id)
-    if (c) {
-      c.ai_analysis_status = 'error'
-      c.ai_analysis_error = err.message
-      await db.write()
-    }
+    await supabase.from('claims').update({
+      ai_analysis_status: 'error',
+      ai_analysis_error: err.message,
+    }).eq('id', claim.id)
     res.status(500).json({ status: 'error', error: err.message })
   }
 })
 
-// ── AI decision suggestion with confidence + reasoning chain ──
+// ── AI decision suggestion ────────────────────────────────────
 router.post('/claims/:id/suggest-decision', async (req, res) => {
-  const claim = db.data.claims.find(c => c.id === Number(req.params.id))
-  if (!claim) return res.status(404).json({ error: 'Claim not found' })
-
-  const notes = db.data.notes
-    .filter(n => n.claim_id === claim.id)
-    .map(n => `[${n.author}]: ${n.content}`)
-    .join('\n') || 'None'
-
-  const docs = db.data.documents.filter(d => d.claim_id === claim.id)
-
   try {
+    const { data: claim } = await supabase.from('claims').select('*').eq('id', Number(req.params.id)).single()
+    if (!claim) return res.status(404).json({ error: 'Claim not found' })
+
+    const { data: notesRows } = await supabase.from('notes')
+      .select('author, content').eq('claim_id', claim.id).order('created_at', { ascending: true })
+    const { data: docs } = await supabase.from('documents')
+      .select('id').eq('claim_id', claim.id)
+
+    const notes = notesRows?.map(n => `[${n.author}]: ${n.content}`).join('\n') || 'None'
+
     const text = await chat([{
       role: 'user',
       content: `You are a senior insurance adjudicator AI assistant. Analyse this claim and provide a structured recommendation.
@@ -163,7 +144,7 @@ CLAIM DETAILS:
 - Location: ${claim.location}
 - Description: ${claim.incident_description}
 - Days since filed: ${Math.floor((Date.now() - new Date(claim.created_at)) / 86400000)}
-- Supporting documents: ${docs.length}
+- Supporting documents: ${docs?.length || 0}
 - Fraud risk: ${claim.fraud_score || 'not assessed'}
 - Fraud flags: ${claim.fraud_flags?.join(', ') || 'none'}
 - Triage complexity: ${claim.triage?.complexity || 'not assessed'}
@@ -181,33 +162,25 @@ Return ONLY this JSON:
   "suggested_excess": number | null,
   "reason": "string (2-3 sentences, suitable for claimant)",
   "key_considerations": ["string"],
-  "reasoning_chain": [
-    "Step 1: ...",
-    "Step 2: ...",
-    "Step 3: ..."
-  ],
+  "reasoning_chain": ["Step 1: ...", "Step 2: ...", "Step 3: ..."],
   "evidence_supporting": ["string"],
   "evidence_against": ["string"],
   "risk_factors": ["string"]
 }
 
-reasoning_chain: step-by-step logic you followed (3-5 steps).
-evidence_supporting: facts that support approving.
-evidence_against: facts that raise concerns.
-confidence_percentage: 0-100, how certain you are in this recommendation.
-approval_likelihood: 0-100, probability this claim should be approved regardless of your recommendation.
+confidence_percentage and approval_likelihood are 0-100 integers.
 Return ONLY the JSON.`,
     }], { max_tokens: 2048 })
 
-    const suggestion = parseJSON(text)
-    res.json(suggestion)
+    res.json(parseJSON(text))
   } catch (err) {
     console.error('Suggest decision error:', err.message)
     res.status(500).json({ error: err.message.includes('NVIDIA_API_KEY') ? 'AI service not configured.' : 'Failed to generate suggestion.' })
   }
 })
 
-// ── Exported helpers for auto-analysis on claim creation ──────
+// ── Exported helpers ──────────────────────────────────────────
+
 export async function runTriage(claim) {
   const text = await chat([{
     role: 'user',
@@ -235,10 +208,8 @@ Return ONLY this JSON:
   "confidence": number
 }
 
-approval_probability: 0-100 likelihood of approval based on claim characteristics.
-estimated_processing_days: realistic days to resolve this type of claim.
-recommended_handler: what type of adjudicator expertise is needed.
-confidence: 0-100 how certain you are in this triage assessment.
+approval_probability: 0-100 integer likelihood of approval.
+confidence: 0-100 integer certainty in this triage assessment.
 Return ONLY the JSON.`,
   }], { max_tokens: 2048 })
 
@@ -248,30 +219,21 @@ Return ONLY the JSON.`,
   if (!result.recommended_handler && result.recommended_recommended_handler) {
     result.recommended_handler = result.recommended_recommended_handler
   }
-
   // Normalise 0-1 decimals → 0-100 integers (some models ignore the 0-100 spec)
-  if (result.approval_probability != null && result.approval_probability <= 1) {
+  if (result.approval_probability != null && result.approval_probability < 1) {
     result.approval_probability = Math.round(result.approval_probability * 100)
   }
-  if (result.confidence != null && result.confidence <= 1) {
+  if (result.confidence != null && result.confidence < 1) {
     result.confidence = Math.round(result.confidence * 100)
   }
 
-  const claim_ = db.data.claims.find(c => c.id === claim.id)
-  if (claim_) {
-    claim_.triage = result
-    claim_.updated_at = new Date().toISOString()
-
-    db.data.audit_logs.push({
-      id: db.data.nextAuditId++,
-      claim_id: claim.id,
-      action: 'triage_completed',
-      actor: 'AI Triage System',
-      detail: `Triage: ${result.complexity} complexity | ${result.predicted_outcome} | ${result.approval_probability}% approval probability`,
-      created_at: new Date().toISOString(),
-    })
-    await db.write()
-  }
+  await supabase.from('claims').update({ triage: result }).eq('id', claim.id)
+  await supabase.from('audit_logs').insert({
+    claim_id: claim.id,
+    action: 'triage_completed',
+    actor: 'AI Triage System',
+    detail: `Triage: ${result.complexity} complexity | ${result.predicted_outcome} | ${result.approval_probability}% approval probability`,
+  })
   return result
 }
 
@@ -298,50 +260,38 @@ Return ONLY this JSON:
   "flags": ["string"],
   "summary": "string (one sentence)",
   "recommended_action": "string (one sentence for adjudicator)",
-  "reasoning_chain": [
-    "Step 1: ...",
-    "Step 2: ...",
-    "Step 3: ..."
-  ],
+  "reasoning_chain": ["Step 1: ...", "Step 2: ...", "Step 3: ..."],
   "behavioral_indicators": ["string"],
   "financial_indicators": ["string"]
 }
 
-flags: specific red flags found (e.g. "Amount unusually high for claim type").
-behavioral_indicators: patterns in how the claim was filed.
-financial_indicators: financial anomalies.
-reasoning_chain: step-by-step fraud analysis logic.
+confidence is a 0-100 integer.
 Return ONLY the JSON.`,
   }], { max_tokens: 2048 })
 
   const riskData = parseJSON(text)
 
   // Normalise 0-1 confidence → 0-100
-  if (riskData.confidence != null && riskData.confidence <= 1) {
+  if (riskData.confidence != null && riskData.confidence < 1) {
     riskData.confidence = Math.round(riskData.confidence * 100)
   }
 
-  const claim_ = db.data.claims.find(c => c.id === claim.id)
-  if (claim_) {
-    claim_.fraud_score      = riskData.score
-    claim_.fraud_flags      = riskData.flags || []
-    claim_.fraud_confidence = riskData.confidence
-    claim_.fraud_summary    = riskData.summary
-    claim_.fraud_reasoning  = riskData.reasoning_chain || []
-    claim_.fraud_behavioral = riskData.behavioral_indicators || []
-    claim_.fraud_financial  = riskData.financial_indicators || []
-    claim_.updated_at       = new Date().toISOString()
+  await supabase.from('claims').update({
+    fraud_score:      riskData.score,
+    fraud_flags:      riskData.flags || [],
+    fraud_confidence: riskData.confidence,
+    fraud_summary:    riskData.summary,
+    fraud_reasoning:  riskData.reasoning_chain || [],
+    fraud_behavioral: riskData.behavioral_indicators || [],
+    fraud_financial:  riskData.financial_indicators || [],
+  }).eq('id', claim.id)
 
-    db.data.audit_logs.push({
-      id: db.data.nextAuditId++,
-      claim_id: claim.id,
-      action: 'risk_assessed',
-      actor: 'AI Fraud System',
-      detail: `Fraud risk: ${riskData.score.toUpperCase()} (${riskData.confidence}% confidence) — ${riskData.summary}`,
-      created_at: new Date().toISOString(),
-    })
-    await db.write()
-  }
+  await supabase.from('audit_logs').insert({
+    claim_id: claim.id,
+    action: 'risk_assessed',
+    actor: 'AI Fraud System',
+    detail: `Fraud risk: ${riskData.score.toUpperCase()} (${riskData.confidence}% confidence) — ${riskData.summary}`,
+  })
   return riskData
 }
 

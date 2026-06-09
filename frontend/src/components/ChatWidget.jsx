@@ -6,55 +6,88 @@ import axios from '../api'
 const QUICK_ACTIONS = {
   guest: [
     { label: 'Check claim status', text: 'I want to check the status of my claim' },
-    { label: 'How to file', text: 'How do I file a new insurance claim?' },
-    { label: 'Documents needed', text: 'What documents do I need for a claim?' },
+    { label: 'How to file',        text: 'How do I file a new insurance claim?' },
+    { label: 'Documents needed',   text: 'What documents do I need for a claim?' },
   ],
   claimant: [
-    { label: 'My claims', text: 'What is the status of my claims?' },
+    { label: 'My claims',       text: 'What is the status of my claims?' },
     { label: 'Processing time', text: 'How long will my claim take to process?' },
-    { label: 'Add documents', text: 'How do I upload documents to my claim?' },
+    { label: 'Add documents',   text: 'How do I upload documents to my claim?' },
   ],
   adjudicator: [
-    { label: 'SLA overview', text: 'Which claims are approaching SLA deadlines?' },
+    { label: 'SLA overview',   text: 'Which claims are approaching SLA deadlines?' },
     { label: 'High fraud risk', text: 'Which claims have high fraud risk?' },
-    { label: 'Pending review', text: 'How many claims need review?' },
+    { label: 'Pending review',  text: 'How many claims need review?' },
   ],
   manager: [
     { label: 'Portfolio summary', text: 'Give me a portfolio summary' },
-    { label: 'Overdue SLAs', text: 'Which claims have breached their SLA?' },
-    { label: 'Fraud overview', text: 'What is the current fraud risk level?' },
+    { label: 'Overdue SLAs',      text: 'Which claims have breached their SLA?' },
+    { label: 'Fraud overview',    text: 'What is the current fraud risk level?' },
   ],
 }
 
+/** Stable session ID per browser — persists for 30 days */
+function getSessionId() {
+  const key = 'claims_chat_session'
+  let id = localStorage.getItem(key)
+  if (!id) {
+    id = `s_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+    localStorage.setItem(key, id)
+  }
+  return id
+}
+
+const SESSION_ID = getSessionId()
+
 export default function ChatWidget() {
-  const location = useLocation()
-  const claimMatch = location.pathname.match(/^\/claims\/(\d+)/)
+  const location    = useLocation()
+  const claimMatch  = location.pathname.match(/\/claims\/(\d+)/)
   const detectedClaimId = claimMatch ? parseInt(claimMatch[1], 10) : null
 
-  const [open, setOpen] = useState(false)
+  const [open,     setOpen]     = useState(false)
   const [messages, setMessages] = useState([])
-  const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [input,    setInput]    = useState('')
+  const [loading,  setLoading]  = useState(false)
+  const [historyLoaded, setHistoryLoaded] = useState(false)
+
   const bottomRef = useRef(null)
-  const inputRef = useRef(null)
+  const inputRef  = useRef(null)
 
   const user = (() => {
     try { return JSON.parse(localStorage.getItem('claims_user') || '{}') } catch { return {} }
   })()
-  const role = user.role || 'guest'
-  const email = user.email || ''
-  const firstName = (user.name || '').split(' ')[0] || ''
+  const role        = user.role  || 'guest'
+  const email       = user.email || ''
+  const firstName   = (user.name || '').split(' ')[0] || ''
   const quickActions = QUICK_ACTIONS[role] || QUICK_ACTIONS.guest
 
-  // Initial greeting
+  // Build the contextual greeting
+  const greeting = role === 'guest'
+    ? "Hi! I'm ClaimsHub Assistant. I can check claim status — just share your reference number, or ask anything about the claims process."
+    : role === 'claimant'
+    ? `Hi ${firstName || 'there'}! I can help you with your claims. What would you like to know?`
+    : `Hello ${firstName || 'there'}! Ask me about your portfolio, SLA status, fraud risk, or any specific claim.`
+
+  // Load chat history from Supabase when widget first opens
   useEffect(() => {
-    const greeting = role === 'guest'
-      ? "Hi! I'm ClaimsHub Assistant. I can check claim status for you — just share your reference number. I can also answer questions about the claims process."
-      : role === 'claimant'
-      ? `Hi ${firstName || 'there'}! I can help you with your claims. What would you like to know?`
-      : `Hello ${firstName || 'there'}! Ask me about your portfolio, SLA status, fraud risk, or any specific claim.`
-    setMessages([{ role: 'assistant', content: greeting }])
-  }, [])
+    if (!open || historyLoaded) return
+    setHistoryLoaded(true)
+
+    axios.get(`/api/chat/history?session_id=${SESSION_ID}`)
+      .then(({ data }) => {
+        if (data.length > 0) {
+          // Restore prior conversation (skip greeting — we have real history)
+          setMessages(data.map(m => ({ role: m.role, content: m.content })))
+        } else {
+          // No history yet — show the greeting
+          setMessages([{ role: 'assistant', content: greeting }])
+        }
+      })
+      .catch(() => {
+        // Fallback: show greeting if history can't be loaded
+        setMessages([{ role: 'assistant', content: greeting }])
+      })
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -68,7 +101,7 @@ export default function ChatWidget() {
 
   // Don't show on landing or login pages
   const hiddenPaths = ['/', '/login']
-  if (hiddenPaths.includes(location.pathname)) return null
+  if (hiddenPaths.some(p => location.pathname === p || location.hash === `#${p}`)) return null
 
   async function sendMessage(text) {
     const content = (text ?? input).trim()
@@ -80,13 +113,18 @@ export default function ChatWidget() {
     setLoading(true)
 
     try {
-      // Skip the first assistant greeting when sending to backend (it's generated locally)
-      const toSend = newMessages.slice(1)
+      // Skip the local greeting when building context to send to backend
+      const firstIsGreeting = newMessages[0]?.role === 'assistant' && newMessages.length >= 1
+      const toSend = firstIsGreeting && newMessages.length <= 2
+        ? newMessages.slice(1)   // strip greeting-only prefix
+        : newMessages
+
       const { data } = await axios.post('/api/chat', {
-        messages: toSend,
+        messages:  toSend,
         role,
-        email: email || undefined,
-        claim_id: detectedClaimId || undefined,
+        email:     email || undefined,
+        claim_id:  detectedClaimId || undefined,
+        session_id: SESSION_ID,
       })
       setMessages(prev => [...prev, { role: 'assistant', content: data.reply }])
     } catch (err) {
@@ -161,6 +199,22 @@ export default function ChatWidget() {
 
           {/* Messages */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+
+            {/* Loading history state */}
+            {messages.length === 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, opacity: 0.5 }}>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {[0,1,2].map(i => (
+                    <span key={i} style={{
+                      width: '5px', height: '5px', borderRadius: '50%',
+                      background: 'var(--text-3)', display: 'inline-block',
+                      animation: `typing-dot 1.2s ease-in-out ${i * 0.2}s infinite`,
+                    }} />
+                  ))}
+                </div>
+              </div>
+            )}
+
             {messages.map((msg, i) => (
               <div key={i} style={{ display: 'flex', gap: '0.4rem', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start', alignItems: 'flex-end' }}>
                 {msg.role === 'assistant' && (
@@ -176,16 +230,8 @@ export default function ChatWidget() {
                   maxWidth: '78%',
                   padding: '0.5rem 0.75rem',
                   borderRadius: msg.role === 'user' ? '14px 14px 3px 14px' : '14px 14px 14px 3px',
-                  background: msg.role === 'user'
-                    ? 'var(--accent)'
-                    : msg.error
-                    ? 'var(--danger-bg)'
-                    : 'var(--surface-2)',
-                  border: `1px solid ${
-                    msg.role === 'user' ? 'transparent'
-                    : msg.error ? 'var(--danger-border)'
-                    : 'var(--border)'
-                  }`,
+                  background: msg.role === 'user' ? 'var(--accent)' : msg.error ? 'var(--danger-bg)' : 'var(--surface-2)',
+                  border: `1px solid ${msg.role === 'user' ? 'transparent' : msg.error ? 'var(--danger-border)' : 'var(--border)'}`,
                   fontSize: '0.8rem',
                   color: msg.role === 'user' ? 'white' : msg.error ? 'var(--danger-text)' : 'var(--text-1)',
                   lineHeight: 1.55,
@@ -236,7 +282,7 @@ export default function ChatWidget() {
             <div ref={bottomRef} />
           </div>
 
-          {/* Quick actions — only show when conversation is fresh */}
+          {/* Quick actions — only when conversation is fresh */}
           {messages.length <= 1 && (
             <div style={{ padding: '0 0.875rem 0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.35rem', flexShrink: 0 }}>
               {quickActions.map((a, i) => (

@@ -1,25 +1,69 @@
 import { Router } from 'express'
-import { db } from '../db/database.js'
+import { supabase } from '../db/supabase.js'
 import { chat, getChatModel } from '../services/nvidia-client.js'
 
 const router = Router()
+const HISTORY_DAYS = 30   // how far back to load chat history
+const MAX_HISTORY  = 50   // max messages to load per session
 
+// ── GET history for a session ─────────────────────────────────
+router.get('/chat/history', async (req, res) => {
+  const { session_id } = req.query
+  if (!session_id) return res.status(400).json({ error: 'session_id required.' })
+
+  try {
+    const cutoff = new Date(Date.now() - HISTORY_DAYS * 86400000).toISOString()
+    const { data, error } = await supabase
+      .from('chat_history')
+      .select('role, content, created_at')
+      .eq('session_id', session_id)
+      .gte('created_at', cutoff)
+      .order('created_at', { ascending: true })
+      .limit(MAX_HISTORY)
+    if (error) throw error
+    res.json(data || [])
+  } catch (err) {
+    console.error('Chat history fetch error:', err.message)
+    res.status(500).json({ error: 'Could not load chat history.' })
+  }
+})
+
+// ── POST a message and get a reply ────────────────────────────
 router.post('/chat', async (req, res) => {
-  const { messages, role, email, claim_id } = req.body
+  const { messages, role, email, claim_id, session_id } = req.body
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: 'messages array required.' })
   }
 
-  // Limit conversation history to last 12 messages to stay within token budget
+  // Limit to last 12 for token budget
   const recent = messages.slice(-12)
-
-  const systemPrompt = buildSystemPrompt(role, email, claim_id, recent)
+  const systemPrompt = await buildSystemPrompt(role, email, claim_id)
 
   try {
     const reply = await chat(
       [{ role: 'system', content: systemPrompt }, ...recent],
       { max_tokens: 200, temperature: 0.3, model: getChatModel() },
     )
+
+    // Persist the last user message + this reply (fire-and-forget)
+    if (session_id) {
+      const lastUser = [...recent].reverse().find(m => m.role === 'user')
+      if (lastUser) {
+        supabase.from('chat_history').insert([
+          {
+            session_id, user_email: email || null, user_role: role || 'guest',
+            claim_id: claim_id || null, role: 'user', content: lastUser.content,
+          },
+          {
+            session_id, user_email: email || null, user_role: role || 'guest',
+            claim_id: claim_id || null, role: 'assistant', content: reply,
+          },
+        ]).then(({ error }) => {
+          if (error) console.error('Chat history save error:', error.message)
+        })
+      }
+    }
+
     res.json({ reply })
   } catch (err) {
     console.error('Chat error:', err.message)
@@ -31,34 +75,35 @@ router.post('/chat', async (req, res) => {
   }
 })
 
-function buildSystemPrompt(role, email, claim_id, messages) {
+// ── System prompt builder ─────────────────────────────────────
+async function buildSystemPrompt(role, email, claim_id) {
   const isGuest = !role || role === 'guest'
 
   if (isGuest) {
-    const claimContext = extractGuestClaimContext(messages)
     return `You are ClaimsHub Assistant, an AI helper for an insurance claims system.
 
 RULES:
 - Answer in 1-3 sentences max. Stop when the question is answered.
 - Only address exactly what was asked. Do not add extra tips or related info.
 - If asked a vague question, give one short sentence and ask what specifically they want.
-- If a user wants to file a claim, tell them to log in first (one sentence).
-
-${claimContext}`
+- If a user wants to file a claim, tell them to log in first (one sentence).`
   }
 
   if (role === 'claimant') {
-    const userClaims = email
-      ? db.data.claims.filter(c => c.claimant_email === email)
-      : []
-    const claimList = userClaims.length
-      ? userClaims.map(c =>
+    let claimList = 'No claims on file.'
+    if (email) {
+      const { data } = await supabase.from('claims')
+        .select('id, claim_type, amount, status, net_payout, decision_reason')
+        .eq('claimant_email', email)
+        .order('created_at', { ascending: false })
+      if (data?.length) {
+        claimList = data.map(c =>
           `- Claim #${String(c.id).padStart(5, '0')}: ${c.claim_type} | $${Number(c.amount).toLocaleString()} AUD | Status: ${c.status}` +
           (c.status === 'approved' ? ` | Net payout: $${Number(c.net_payout ?? 0).toLocaleString()} AUD` : '') +
           (c.decision_reason ? ` | Note: ${c.decision_reason}` : ''),
         ).join('\n')
-      : 'No claims on file.'
-
+      }
+    }
     return `You are ClaimsHub Assistant helping a claimant with their insurance claims.
 
 CLAIMANT: ${email || 'Unknown'}
@@ -74,21 +119,25 @@ RULES:
   }
 
   if (role === 'adjudicator' || role === 'manager') {
-    const all = db.data.claims
-    const pending = all.filter(c => c.status === 'pending').length
-    const underReview = all.filter(c => c.status === 'under_review').length
-    const approved = all.filter(c => c.status === 'approved').length
-    const rejected = all.filter(c => c.status === 'rejected').length
-    const overdue = all.filter(c =>
+    const { data: all } = await supabase.from('claims')
+      .select('id, status, sla_due, fraud_score, amount')
+    const claims = all || []
+
+    const pending    = claims.filter(c => c.status === 'pending').length
+    const underReview = claims.filter(c => c.status === 'under_review').length
+    const approved   = claims.filter(c => c.status === 'approved').length
+    const rejected   = claims.filter(c => c.status === 'rejected').length
+    const overdue    = claims.filter(c =>
       !['approved', 'rejected', 'closed'].includes(c.status) &&
-      c.sla_due && new Date(c.sla_due) < new Date(),
+      c.sla_due && new Date(c.sla_due) < new Date()
     ).length
-    const highRisk = all.filter(c => c.fraud_score === 'high').length
-    const totalExposure = all.reduce((s, c) => s + Number(c.amount), 0)
+    const highRisk   = claims.filter(c => c.fraud_score === 'high').length
+    const totalExposure = claims.reduce((s, c) => s + Number(c.amount || 0), 0)
 
     let specificClaimCtx = ''
     if (claim_id) {
-      const sc = all.find(c => c.id === Number(claim_id))
+      const { data: sc } = await supabase.from('claims').select('*')
+        .eq('id', Number(claim_id)).single()
       if (sc) {
         specificClaimCtx = `
 CURRENT CLAIM CONTEXT (#${String(sc.id).padStart(5, '0')}):
@@ -105,7 +154,7 @@ CURRENT CLAIM CONTEXT (#${String(sc.id).padStart(5, '0')}):
 ROLE: ${role.charAt(0).toUpperCase() + role.slice(1)}${email ? ` | USER: ${email}` : ''}
 
 PORTFOLIO SNAPSHOT:
-- Total claims: ${all.length} | Total exposure: $${totalExposure.toLocaleString()} AUD
+- Total claims: ${claims.length} | Total exposure: $${totalExposure.toLocaleString()} AUD
 - Pending: ${pending} | Under review: ${underReview} | Approved: ${approved} | Rejected: ${rejected}
 - SLA overdue: ${overdue} | High fraud risk: ${highRisk}
 ${specificClaimCtx}
@@ -117,28 +166,6 @@ RULES:
   }
 
   return 'You are ClaimsHub Assistant. Answer in 1-3 sentences max. Only address exactly what was asked.'
-}
-
-function extractGuestClaimContext(messages) {
-  const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')?.content || ''
-  // Match patterns: "00001", "#1", "claim 5", "reference 00003"
-  const refMatch = lastUserMsg.match(/(?:claim|ref(?:erence)?|#|number)?\s*#?\s*0*(\d{1,5})\b/i)
-  if (!refMatch) return ''
-
-  const claimId = parseInt(refMatch[1], 10)
-  const claim = db.data.claims.find(c => c.id === claimId)
-  if (!claim) {
-    return `\nCLAIM LOOKUP: No claim found with reference #${String(claimId).padStart(5, '0')}.`
-  }
-
-  const daysAgo = Math.floor((Date.now() - new Date(claim.updated_at)) / 86400000)
-  return `
-CLAIM STATUS (reference #${String(claim.id).padStart(5, '0')}):
-- Type: ${claim.claim_type} | Status: ${claim.status}
-- Filed: ${new Date(claim.created_at).toLocaleDateString('en-AU')} | Last updated: ${daysAgo === 0 ? 'today' : `${daysAgo}d ago`}
-${claim.status === 'approved' ? `- Approved payout: $${Number(claim.net_payout ?? 0).toLocaleString()} AUD | Payment: ${claim.payment_status || 'pending'}` : ''}
-${claim.decision_reason ? `- Note: ${claim.decision_reason}` : ''}
-Use this information to answer the user's status question.`
 }
 
 export default router
