@@ -46,8 +46,8 @@ const OUTCOME_CONFIG = {
 
 const AI_STEPS = [
   { icon: Activity,  label: 'Scanning claim data…' },
-  { icon: Shield,    label: 'Running fraud detection…' },
-  { icon: Brain,     label: 'Running triage assessment…' },
+  { icon: Shield,    label: 'Running fraud & triage analysis (parallel)…' },
+  { icon: Brain,     label: 'Processing results…' },
   { icon: Check,     label: 'Analysis complete!' },
 ]
 
@@ -137,6 +137,8 @@ export default function AdjusterWorkflow() {
   const [aiStep,    setAiStep]    = useState(-1)   // -1 not started, 0-3 step index
   const [aiRunning, setAiRunning] = useState(false)
   const [triageRan, setTriageRan] = useState(false)
+  const [aiElapsed, setAiElapsed] = useState(0)    // seconds elapsed while running
+  const aiTimerRef = useRef(null)
 
   // Stage 4 — assessment
   const [assessmentNote, setAssessmentNote] = useState('')
@@ -226,20 +228,41 @@ export default function AdjusterWorkflow() {
 
   async function runAIAnalysis() {
     setAiRunning(true)
+    setAiElapsed(0)
     setAiStep(0)
+
+    // Start elapsed-time counter (ticks every second)
+    let secs = 0
+    aiTimerRef.current = setInterval(() => {
+      secs += 1
+      setAiElapsed(secs)
+    }, 1000)
+
     try {
+      // Step 0 visible for a moment before firing requests
+      await new Promise(r => setTimeout(r, 500))
       setAiStep(1)
-      await axios.post(`/api/claims/${id}/risk-score`)
+
+      // Run fraud analysis and triage IN PARALLEL — halves total wait time
+      // Each call gets a generous 90-second timeout (Gemma 4 is a large model)
+      await Promise.all([
+        axios.post(`/api/claims/${id}/risk-score`, {}, { timeout: 90000 }),
+        axios.post(`/api/claims/${id}/triage`,     {}, { timeout: 90000 }),
+      ])
+
       setAiStep(2)
-      await axios.post(`/api/claims/${id}/triage`)
-      setAiStep(3)
       await load(true)
+      setAiStep(3)
       setTriageRan(true)
       toast('AI analysis complete!', 'success')
     } catch (err) {
-      toast(err.response?.data?.error || 'AI analysis failed.', 'error')
+      const msg = err.code === 'ECONNABORTED'
+        ? 'AI analysis timed out. The NVIDIA API is under load — please try again in a moment.'
+        : (err.response?.data?.error || 'AI analysis failed. Please try again.')
+      toast(msg, 'error')
       setAiStep(-1)
     } finally {
+      clearInterval(aiTimerRef.current)
       setAiRunning(false)
     }
   }
@@ -600,11 +623,23 @@ export default function AdjusterWorkflow() {
               <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-1)', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Brain size={15} color="var(--accent)" /> AI Analysis Pipeline
               </h3>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-3)' }}>
-                {triageRan
-                  ? 'Analysis complete — results shown below. Re-run to refresh.'
-                  : 'Run fraud detection + triage assessment powered by NVIDIA Gemma 4.'}
-              </p>
+              <div>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-3)', marginBottom: '0.25rem' }}>
+                  {triageRan
+                    ? 'Analysis complete — results shown below. Re-run to refresh.'
+                    : 'Run fraud detection + triage assessment powered by NVIDIA Gemma 4.'}
+                </p>
+                {aiRunning && (
+                  <p style={{ fontSize: '0.72rem', color: 'var(--warning)', fontWeight: 600 }}>
+                    ⏳ Gemma 4 is a large model — this takes 30–60 seconds. Please wait… {aiElapsed > 0 ? `(${aiElapsed}s)` : ''}
+                  </p>
+                )}
+                {!aiRunning && !triageRan && (
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>
+                    ℹ️ Expect ~30–60 seconds for Gemma 4 (31B) to respond.
+                  </p>
+                )}
+              </div>
             </div>
             <button
               onClick={runAIAnalysis}
@@ -620,7 +655,7 @@ export default function AdjusterWorkflow() {
               }}
             >
               {aiRunning ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Brain size={13} />}
-              {triageRan ? 'Re-run Analysis' : 'Run AI Analysis'}
+              {aiRunning ? `Running… ${aiElapsed > 0 ? `(${aiElapsed}s)` : ''}` : triageRan ? 'Re-run Analysis' : 'Run AI Analysis'}
             </button>
           </div>
 
