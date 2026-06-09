@@ -231,24 +231,45 @@ export default function AdjusterWorkflow() {
     setAiElapsed(0)
     setAiStep(0)
 
-    // Start elapsed-time counter (ticks every second)
+    // Tick elapsed-time counter every second
     let secs = 0
-    aiTimerRef.current = setInterval(() => {
-      secs += 1
-      setAiElapsed(secs)
-    }, 1000)
+    aiTimerRef.current = setInterval(() => { secs += 1; setAiElapsed(secs) }, 1000)
 
     try {
-      // Step 0 visible for a moment before firing requests
-      await new Promise(r => setTimeout(r, 500))
+      await new Promise(r => setTimeout(r, 400))
       setAiStep(1)
 
-      // Run fraud analysis and triage IN PARALLEL — halves total wait time
-      // Each call gets a generous 90-second timeout (Gemma 4 is a large model)
-      await Promise.all([
-        axios.post(`/api/claims/${id}/risk-score`, {}, { timeout: 90000 }),
-        axios.post(`/api/claims/${id}/triage`,     {}, { timeout: 90000 }),
-      ])
+      // Fire-and-forget: backend starts AI jobs and returns immediately.
+      // This avoids Vercel's HTTP timeout entirely — the AI runs server-side
+      // in the background while we poll for the result.
+      await axios.post(`/api/claims/${id}/start-analysis`)
+
+      // Poll claim every 3 seconds until ai_analysis_status is 'complete'/'error'
+      // or until 4 minutes have elapsed (80 polls × 3s)
+      let polls = 0
+      await new Promise((resolve, reject) => {
+        const poller = setInterval(async () => {
+          polls += 1
+          if (polls > 80) {
+            clearInterval(poller)
+            return reject(new Error('Analysis is taking unusually long. Check back in a moment — results may still arrive.'))
+          }
+          try {
+            const { data: latest } = await axios.get(`/api/claims/${id}`)
+            if (latest.ai_analysis_status === 'complete') {
+              clearInterval(poller)
+              resolve(latest)
+            } else if (latest.ai_analysis_status === 'error') {
+              clearInterval(poller)
+              reject(new Error(latest.ai_analysis_error || 'AI analysis encountered an error on the server.'))
+            }
+            // still 'running' — keep polling
+          } catch (pollErr) {
+            clearInterval(poller)
+            reject(pollErr)
+          }
+        }, 3000)
+      })
 
       setAiStep(2)
       await load(true)
@@ -256,10 +277,7 @@ export default function AdjusterWorkflow() {
       setTriageRan(true)
       toast('AI analysis complete!', 'success')
     } catch (err) {
-      const msg = err.code === 'ECONNABORTED'
-        ? 'AI analysis timed out. The NVIDIA API is under load — please try again in a moment.'
-        : (err.response?.data?.error || 'AI analysis failed. Please try again.')
-      toast(msg, 'error')
+      toast(err.message || 'AI analysis failed. Please try again.', 'error')
       setAiStep(-1)
     } finally {
       clearInterval(aiTimerRef.current)
@@ -631,12 +649,12 @@ export default function AdjusterWorkflow() {
                 </p>
                 {aiRunning && (
                   <p style={{ fontSize: '0.72rem', color: 'var(--warning)', fontWeight: 600 }}>
-                    ⏳ Gemma 4 is a large model — this takes 30–60 seconds. Please wait… {aiElapsed > 0 ? `(${aiElapsed}s)` : ''}
+                    ⏳ Gemma 4 running on NVIDIA — polling for results… {aiElapsed > 0 ? `(${aiElapsed}s elapsed)` : ''}
                   </p>
                 )}
                 {!aiRunning && !triageRan && (
                   <p style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>
-                    ℹ️ Expect ~30–60 seconds for Gemma 4 (31B) to respond.
+                    ℹ️ Analysis runs in the background — results appear automatically when ready.
                   </p>
                 )}
               </div>
