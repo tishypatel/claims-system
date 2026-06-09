@@ -16,7 +16,9 @@ export function getNvidiaClient() {
 }
 
 export function getModel() {
-  return process.env.NVIDIA_MODEL || 'google/gemma-4-31b-it'
+  // meta/llama-3.1-70b-instruct: confirmed working on this NVIDIA account (0.37s response)
+  // google/gemma-4-31b-it hangs indefinitely (HTTP:000 after 120s) — do not use as default
+  return process.env.NVIDIA_MODEL || 'meta/llama-3.1-70b-instruct'
 }
 
 export function getVisionModel() {

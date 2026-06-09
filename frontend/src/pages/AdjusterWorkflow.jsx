@@ -629,11 +629,11 @@ export default function AdjusterWorkflow() {
                 <p style={{ fontSize: '0.78rem', color: 'var(--text-3)', marginBottom: '0.25rem' }}>
                   {triageRan
                     ? 'Analysis complete — results shown below. Re-run to refresh.'
-                    : 'Run fraud detection + triage assessment powered by NVIDIA Gemma 4.'}
+                    : 'Run fraud detection + triage assessment powered by NVIDIA AI.'}
                 </p>
                 {aiRunning && (
                   <p style={{ fontSize: '0.72rem', color: 'var(--warning)', fontWeight: 600 }}>
-                    ⏳ Gemma 4 running on NVIDIA — polling for results… {aiElapsed > 0 ? `(${aiElapsed}s elapsed)` : ''}
+                    ⏳ NVIDIA AI running analysis… {aiElapsed > 0 ? `(${aiElapsed}s elapsed)` : ''}
                   </p>
                 )}
                 {!aiRunning && !triageRan && (

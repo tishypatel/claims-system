@@ -249,6 +249,14 @@ Return ONLY the JSON.`,
     result.recommended_handler = result.recommended_recommended_handler
   }
 
+  // Normalise 0-1 decimals → 0-100 integers (some models ignore the 0-100 spec)
+  if (result.approval_probability != null && result.approval_probability <= 1) {
+    result.approval_probability = Math.round(result.approval_probability * 100)
+  }
+  if (result.confidence != null && result.confidence <= 1) {
+    result.confidence = Math.round(result.confidence * 100)
+  }
+
   const claim_ = db.data.claims.find(c => c.id === claim.id)
   if (claim_) {
     claim_.triage = result
@@ -307,6 +315,11 @@ Return ONLY the JSON.`,
   }], { max_tokens: 1024 })
 
   const riskData = parseJSON(text)
+
+  // Normalise 0-1 confidence → 0-100
+  if (riskData.confidence != null && riskData.confidence <= 1) {
+    riskData.confidence = Math.round(riskData.confidence * 100)
+  }
 
   const claim_ = db.data.claims.find(c => c.id === claim.id)
   if (claim_) {
