@@ -16,9 +16,8 @@ export function getNvidiaClient() {
 }
 
 export function getModel() {
-  // meta/llama-3.1-70b-instruct: confirmed working on this NVIDIA account (0.37s response)
-  // google/gemma-4-31b-it hangs indefinitely (HTTP:000 after 120s) — do not use as default
-  return process.env.NVIDIA_MODEL || 'meta/llama-3.1-70b-instruct'
+  // openai/gpt-oss-120b: reasoning model, confirmed working (~2s, native 0-100 JSON outputs)
+  return process.env.NVIDIA_MODEL || 'openai/gpt-oss-120b'
 }
 
 export function getVisionModel() {
@@ -36,7 +35,9 @@ export async function chat(messages, opts = {}) {
     model: opts.model || getModel(),
     messages,
     temperature: opts.temperature ?? 0.1,
-    max_tokens: opts.max_tokens ?? 1024,
+    // 2048 default: gpt-oss-120b is a reasoning model — it uses extra tokens internally
+    // before producing the final answer, so 1024 can cut off mid-response
+    max_tokens: opts.max_tokens ?? 2048,
   })
   return completion.choices[0].message.content.trim()
 }

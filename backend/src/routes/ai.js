@@ -197,7 +197,7 @@ evidence_against: facts that raise concerns.
 confidence_percentage: 0-100, how certain you are in this recommendation.
 approval_likelihood: 0-100, probability this claim should be approved regardless of your recommendation.
 Return ONLY the JSON.`,
-    }], { max_tokens: 1500 })
+    }], { max_tokens: 2048 })
 
     const suggestion = parseJSON(text)
     res.json(suggestion)
@@ -240,7 +240,7 @@ estimated_processing_days: realistic days to resolve this type of claim.
 recommended_handler: what type of adjudicator expertise is needed.
 confidence: 0-100 how certain you are in this triage assessment.
 Return ONLY the JSON.`,
-  }], { max_tokens: 1024 })
+  }], { max_tokens: 2048 })
 
   const result = parseJSON(text)
 
@@ -312,7 +312,7 @@ behavioral_indicators: patterns in how the claim was filed.
 financial_indicators: financial anomalies.
 reasoning_chain: step-by-step fraud analysis logic.
 Return ONLY the JSON.`,
-  }], { max_tokens: 1024 })
+  }], { max_tokens: 2048 })
 
   const riskData = parseJSON(text)
 
