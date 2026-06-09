@@ -6,7 +6,7 @@ import {
   CheckCircle, XCircle, AlertTriangle, Loader2, Upload, Paperclip,
   Trash2, Send, Sparkles, Shield, DollarSign, Activity, X,
   Check, ChevronRight, ChevronLeft, FileText, User, MapPin,
-  MessageSquare, RefreshCw,
+  MessageSquare, RefreshCw, Eye, ExternalLink,
 } from 'lucide-react'
 import StatusBadge from '../components/StatusBadge'
 import { useToast } from '../components/Toast'
@@ -105,6 +105,89 @@ function StageCard({ title, icon: Icon, accent = 'var(--accent)', children }) {
   )
 }
 
+/* ─── Document preview modal ─────────────────────────────────── */
+
+function DocPreviewModal({ doc, onClose }) {
+  const url      = doc.public_url
+  const mime     = doc.mimetype || ''
+  const name     = doc.original_name || doc.label || ''
+  const isImage  = mime.startsWith('image/') || /\.(png|jpe?g|webp|gif)$/i.test(name)
+  const isPdf    = mime === 'application/pdf' || /\.pdf$/i.test(name)
+  const isWord   = /\.(docx?|xlsx?|pptx?)$/i.test(name) ||
+                   mime.includes('officedocument') || mime.includes('msword')
+  // Google Docs viewer for Word / fallback for anything else non-image non-PDF
+  const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 10000,
+        background: 'rgba(0,0,0,0.72)', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', padding: '1.25rem',
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: 'var(--surface)', border: '1px solid var(--border)',
+          borderRadius: 'var(--r-lg)', boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+          width: '100%', maxWidth: '860px',
+          maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Modal header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '0.75rem',
+          padding: '0.875rem 1rem', borderBottom: '1px solid var(--border)', flexShrink: 0,
+        }}>
+          <FileText size={15} color="var(--accent)" style={{ flexShrink: 0 }} />
+          <p style={{ flex: 1, fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {doc.label && doc.label !== name ? `${doc.label} — ` : ''}{name}
+          </p>
+          <a
+            href={url} target="_blank" rel="noreferrer"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--accent)', textDecoration: 'none', flexShrink: 0, padding: '0.25rem 0.5rem', borderRadius: 'var(--r-sm)', border: '1px solid var(--accent-border)', background: 'var(--accent-bg)' }}
+          >
+            <ExternalLink size={11} /> Open
+          </a>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: '0.2rem', display: 'flex', flexShrink: 0 }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--text-1)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Preview area */}
+        <div style={{ flex: 1, overflow: 'auto', background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
+          {isImage && (
+            <img
+              src={url} alt={name}
+              style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', display: 'block', padding: '1rem' }}
+            />
+          )}
+          {isPdf && (
+            <iframe
+              src={url} title={name}
+              style={{ width: '100%', height: '70vh', border: 'none', display: 'block' }}
+            />
+          )}
+          {(isWord || (!isImage && !isPdf)) && (
+            <iframe
+              src={viewerUrl} title={name}
+              style={{ width: '100%', height: '70vh', border: 'none', display: 'block' }}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ─── Main component ─────────────────────────────────────────── */
 
 export default function AdjusterWorkflow() {
@@ -128,6 +211,7 @@ export default function AdjusterWorkflow() {
   const [docVerified,  setDocVerified]  = useState({})
   const [docLabel,     setDocLabel]     = useState('')
   const [docUploading, setDocUploading] = useState(false)
+  const [previewDoc,   setPreviewDoc]   = useState(null)
 
   // Stage 2 — doc request note
   const [docReqText,   setDocReqText]   = useState('')
@@ -498,6 +582,18 @@ export default function AdjusterWorkflow() {
                     </p>
                     <p style={{ fontSize: '0.68rem', color: 'var(--text-3)' }}>{(doc.size / 1024).toFixed(1)} KB · {doc.uploaded_by}</p>
                   </div>
+                  {/* Preview button — only if we have a public URL (Supabase Storage) */}
+                  {doc.public_url && (
+                    <button
+                      onClick={() => setPreviewDoc(doc)}
+                      title="Preview"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: '0.2rem', flexShrink: 0, display: 'flex' }}
+                      onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
+                    >
+                      <Eye size={13} />
+                    </button>
+                  )}
                   <button
                     onClick={() => setDocVerified(prev => ({ ...prev, [doc.id]: !prev[doc.id] }))}
                     style={{
@@ -1228,6 +1324,9 @@ export default function AdjusterWorkflow() {
         {currentStage === 4 && renderStage4()}
         {currentStage === 5 && renderStage5()}
       </div>
+
+      {/* Document preview modal */}
+      {previewDoc && <DocPreviewModal doc={previewDoc} onClose={() => setPreviewDoc(null)} />}
 
       {/* Navigation bar — only stages 1–4, not when decided */}
       {currentStage < 5 && !isDecided && (
